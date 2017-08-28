@@ -2,19 +2,17 @@
   (:require [clojure.java.io :as io]
             [cljs.reader :as cljs-reader]
             [clojure.tools.reader :as tools-reader]
+            [cider.nrepl.middleware.util.java.parser :as cider-java]
             [clojure.tools.reader.reader-types :as rt]
-            [clojure.edn :as edn]
             [hiccup.core :as h])
   (:import [java.nio.file Files]))
 
+(set! *warn-on-reflection* true)
 
 (defn ns->source-string
   [ns]
   (when-let [path (some-> ns ns-publics first val meta :file)]
-    (println "path = " path)
-    (if (.startsWith path "/")
-      (slurp path)
-      (-> path io/resource slurp))))
+    (-> path io/resource slurp)))
 
 (defn clj-whitespace
   [c]
@@ -30,23 +28,35 @@
     false))
 
 (defn whitespace-string
-  [{:keys [buf pos]}]
+  [{:keys [^String buf pos]}]
   (loop [idx pos]
     (if (and (< idx (.length buf)) (clj-whitespace (.charAt buf idx)))
       (recur (inc idx))
       (.substring ^String buf pos idx))))
 
 (defn symbol-string
-  [{:keys [buf pos]}]
+  [{:keys [^String buf pos]}]
   (loop [idx pos]
     (if (and (< idx (.length buf)) (not (clj-special (.charAt buf idx))))
       (recur (inc idx))
       (.substring ^String buf pos idx))))
 
+(defrecord Substring [chars offset length])
+
+(defn substring
+  [^Substring parent ^long off ^long len]
+  (->Substring
+    (:chars parent)
+    (+ off (:offset parent))
+    len))
+
 (defn lex
   [orig-ctx]
-  (loop [{:keys [buf pos line] :as ctx} (-> orig-ctx (assoc :line 1) transient)
+  (loop [{:keys [^String buf pos line] :as ctx} (-> orig-ctx (assoc :line 1) transient)
          tokens (transient [])]
+    #_(when (< pos (.length buf))
+      (println "char = " (.charAt buf pos))
+      )
     (if (>= pos (.length buf))
       (persistent! tokens)
       (case (.charAt buf pos)
@@ -55,11 +65,11 @@
                (conj! tokens {:type :ws :text "\n" :line line}))
 
         (\, \space \tab)
-        (let [whitespace (whitespace-string ctx)]
+        (let [^String whitespace (whitespace-string ctx)]
           (recur (assoc! ctx :pos (+ pos (.length whitespace)))
                  (conj! tokens {:type :ws :text whitespace})))
         
-        (\( \) \{ \} \[ \] \` \~)
+        (\( \) \{ \} \[ \] \` \~ \# \^ \')
         (recur (assoc! ctx :pos (inc pos))
                (conj! tokens (.charAt buf pos)))
 
@@ -87,9 +97,19 @@
              (recur (assoc! ctx :pos comment-end)
                     (conj! tokens {:type :comment :text (.substring buf pos comment-end)})))
         
-        (let [sym (symbol-string ctx)]
+        \\ (recur (assoc! ctx :pos (+ 2 pos))
+                  (conj! tokens {:type :char-literal :text (str (.charAt buf (inc pos)))}))
+
+        (let [^String sym (symbol-string ctx)]
           (recur (assoc! ctx :pos (+ pos (.length sym)))
                  (conj! tokens {:type :symbol :text sym})))))))
+
+#_(type (resolve (read-string "java.lang.String")))
+
+(defn resolve?
+  [s]
+  (try (resolve s)
+       (catch Exception e nil)))
 
 (defn parse-symbol
   [{:keys [text] :as sym}]
@@ -97,92 +117,106 @@
     (let [rd (read-string text)]
       (if (keyword? rd)
         (assoc sym :val rd)
-        (try
-          (assoc sym :val rd :resolved (resolve rd))
-          (catch Exception e
-            (assoc sym :val rd)))))
+        (assoc sym :val rd :resolved (resolve? rd))))
     (catch Exception e
       sym)))
 
 (defn javadoc-url
-  [cls]
+  [^Class cls]
   ;; https://docs.oracle.com/javase/8/docs/api/java/lang/String.html
-  (str "https://docs.oracle.com/javase/8/docs/api/"
-       (.replace (.getName cls) \. \/)
-       ".html"))
+  (let [^String clsname (.getName cls)]
+   (str "https://docs.oracle.com/javase/8/docs/api/"
+     (.replace clsname \. \/)
+     ".html")))
 
 (def ^:const clojure-core-ns (find-ns 'clojure.core))
-(meta (resolve 'javadoc-url))
-
-(defn render-keyword
-  [text]
-  (if (.startsWith text "::")      ;we can't touch namespaced keywords
-    [:span {:class :keyword} text]
-    (let [slash-idx (.indexOf text "/")]
-      (if (< slash-idx 0)
-        [:span {:class :keyword} text]
-        (let [kw (edn/read-string text)]
-          #_(println text kw (namespace kw) (find-ns (symbol (namespace kw))))
-          [:span {:class :keyword}
-           ":"
-           [:span {:class :ns-ref} (.substring text 1 slash-idx)]
-           (.substring text slash-idx)]
-          #_[:span
-           [:span {:class :keyword} ":"]
-           [:span {:class :ns-ref} (.substring text 1 slash-idx)]
-           [:span {:class :keyword} (.substring text slash-idx)]])))))
 
 (defn add-link
   [text meta]
-  (cond
-    (= clojure-core-ns (:ns meta))
-    [:a {:href (format "https://clojuredocs.org/clojure.core/%s" (:name meta))} text]
-    
-    (:file meta)
-    [:a {:href (str (ns-name (:ns meta)) ".html#L" (:line meta))} text]
+  (let [props
+        (cond
+          (= clojure-core-ns (:ns meta))
+          {:href (format "https://clojuredocs.org/clojure.core/%s" (:name meta))}
+                 
+          (:file meta)
+          {:href (str (ns-name (:ns meta)) ".html#L" (:line meta))})]
+    [:a
+     (cond-> props
+       (:doc meta)
+       (assoc :title (:doc meta)))
+     text]))
 
-    :else text
-    ))
+(def special-form? #{"def" "let" "if" "do" "fn" "loop" "recur" "try" "throw" "quote" "var"})
+
+(class? (resolve (symbol (namespace 'clojure.lang.Util/equiv))))
 
 (defn render-symbol
-  [{:keys [val resolved text]}]
+  [{:keys [val resolved ^String text]}]
   (cond
     (nil? val)
     [:span {:class :unparsed} text]
 
+    (.startsWith text ".")
+    [:span {:class :java-class} text]
+
+    (special-form? text)
+    [:span {:class :macro} text]
+
     (keyword? val)
-    (render-keyword text)
-    
+    [:span {:class :keyword} text]
+
     (class? resolved)
     [:span {:class :java-class} text]
 
     (meta resolved)
     (let [m (meta resolved)
-          core? (= (find-ns 'clojure.core) (:ns m))
+          core? (= clojure-core-ns (:ns m))
           text (add-link text m)
           classes (cond-> [:var-ref]
                     (:macro m) (conj :macro)
                     core? (conj :clojure-core))]
       [:span {:class (clojure.string/join " " (mapv name classes))} text])
+
     
-    (.startsWith text ".")
-    [:span {:class :macro} text]
+    (symbol? val)
+    (let [rns (some-> val namespace symbol)]
+      (cond
+        (some-> rns resolve? class?)
+        [:span {:class :java-class} (name rns) "/" [:span {:class :symbol} (name val)]]
+
+        :else
+        [:span {:class :symbol} val]))
 
     :else
-    (or
-      (when-let [cls (and
-                       (.endsWith text ".")
-                       (some-> text (.substring 0 (dec (.length text))) symbol resolve))]
-        [:span {:class :java-class} [:a {:href (javadoc-url cls)} text]])
+    (if-let [cls (and (.endsWith text ".")
+                      (some-> text (.substring 0 (dec (.length text))) symbol resolve))]
+      ;; TODO: fix this for java class names (instead of just java constructor calls)
+      [:span {:class :java-class} [:a {:href (javadoc-url cls)} text]]
       [:span {:class :unknown} text])))
 
+(defn render-lex
+  [t]
+  (cond
+    (nil? t)
+    []
+
+    (char? t)
+    [:span {:class :punctuation} (str t)]
+
+    :else
+    (case (:type t)
+      :ws [:span {:class :whitespace} (:text t)]
+      :symbol (render-symbol (parse-symbol t))
+      :string [:span {:class :string} (:text t)]
+      :comment [:span {:class :comment} (:text t)])))
 
 (declare parse-list)
 
 (def open->closed
   {\( \)
    \[ \]
-   \{ \}})
+   \{ \}
+   "#{" \}})
 
 (def closed->open
   {\) \(
@@ -194,12 +228,43 @@
   (when-let [t (first ts)]
     (if-let [closing-delimiter (open->closed t)]
       (parse-list closing-delimiter (next ts))
-      {:val t :rest (next ts)})))
+      (case t
+        \#
+        (let [ts (next ts)
+              nt (first ts)]
+          ;; dispatch
+          (case nt
+            \_ (-> (parse-one nt) :rest parse-one)
+            \( (let [{:keys [val rest]} (parse-one ts)]
+                 {:val {:type :lambda :text val} :rest rest})
+            \{ (update-in (parse-one ts) [:val :delim] (constantly"#{"))
+
+            \'
+            (let [{:keys [val rest]} (parse-one ts)]
+              {:val {:type :var-quote :text (-> val :val :text)} :rest rest})
+
+            {:type :symbol :text "?"}
+            (let [{:keys [val rest]} (parse-one ts)]
+              {:val {:type :reader-conditional :text val} :rest rest})
+
+            (case (:type nt)
+              :string
+              (let [{:keys [val rest]} (parse-one ts)]
+                {:val {:type :regex :text (:text val)} :rest rest})
+              :symbol
+              {:val {:type :data-reader :text (:text nt)} :rest (next ts)})))
+        \^
+        (let [{:keys [val rest]} (parse-one (next ts))]
+          {:val {:type :meta :val val} :rest rest})
+
+        \' (let [{:keys [val rest]} (parse-one (next ts))]
+             {:val {:type :quote :val val} :rest rest})
+        {:val t :rest (next ts)}))))
 
 (defn parse-list
-  [closer ts]
+  [closer ots]
   (loop [forms []
-         ts ts]
+         ts ots]
     (if-let [t (first ts)]
       (if-let [sub-closer (open->closed t)]
         (let [{:keys [val rest]} (parse-list sub-closer (next ts))]
@@ -207,40 +272,81 @@
         (if (= closer t)
           {:val {:type :coll :delim (closed->open closer) :contents forms}
            :rest (next ts)}
-          (recur (conj forms t) (next ts))))
-      (throw (ex-info "expecting closer" {:closer closer :ts ts :lastform (last forms)})))))
+          (let [{:keys [val rest]} (parse-one ts)]
+            (recur (conj forms val) rest))
+          #_(recur (conj forms t) (next ts))))
+      (throw (ex-info "expecting closer" {:closer closer :ts ts})))))
+
+(defn parse-many
+  [ts]
+  (loop [forms []
+         ts ts]
+    (if (some? ts)
+      (let [{:keys [val rest]} (parse-one ts)]
+        (recur (conj forms val) rest))
+      forms)))
+
 
 (defn render-parse
   [t]
   (case (:type t)
-    :ws      (:text t)
-    :symbol  (render-symbol (parse-symbol t))
-    :string  [:span {:class :string} (:text t)]
-    :comment [:span {:class :comment} (:text t)]
-    :coll 
-   (into [:span (:delim t)]
-      (conj
-        (mapv render-parse (:contents t))
-        (open->closed (:delim t))))))
+    :ws           [:span {:class :whitespace} (:text t)]
+    :symbol       (render-symbol (parse-symbol t))
+    :string       [:span {:class :string} (:text t)]
+    :comment      [:span {:class :comment} (:text t)]
+    :data-reader  [:span {:class :metadata} (str "#" (:text t))]
+    :regex        [:span "#" [:span {:class :strign} (:text t)]]
+    :char-literal [:span {:class :string} (:text t)]
+    :meta         [:span "^" (render-parse (:val t))] 
+    :quote        [:span "'" (render-parse (:val t))]
+    :var-quote    [:span "#'" [:span {:class :var-ref} (:text t)]]
+
+    :coll
+    (into [:span (:delim t)]
+          (conj (mapv render-parse (:contents t)) (open->closed (:delim t))))
+
+    :lambda
+    (into [:span "#("]
+          (conj (mapv render-parse (:contents (:text t))) ")"))
+
+    :reader-conditional
+    (into [:span "#?"] (mapv render-parse (:contents (:text t))))
+    
+    (case t
+      (\` \~) t
+      [:span {:class :unparsed} (pr-str t)])))
+
+(def ^:dynamic *timings-enabled* false)
+
+(defmacro timing
+  [name & body]
+  `(let [start# (System/nanoTime)
+         result# (do ~@body)
+         end# (System/nanoTime)]
+     (when *timings-enabled*
+      (printf "%s: %.02f ms\n" ~name (/ (double (- end# start#)) 1e6)))
+     result#))
 
 (defn render-code
   [src]
   (when src
-    (let [lexed (lex {:pos 0 :buf (str "[" src "]")})
-          parsed (-> (parse-one lexed) :val :contents)]
-     (h/html
-      [:head [:link {:rel :stylesheet :href "file:///Users/russell/a/code.css"}]
-       [:div {:class :container}
-        [:pre (into [:code {:class "gutter"}]
-                    (for [line (range 1 (inc (count (clojure.string/split-lines src))))]
-                      [:span {:class :punctuation :id (format "L%d" line)} (format "%04d\n" line)]))]
-        [:div {:style "width:1px;"}]
-        [:pre {:class "source"} (into [:code] (mapv render-parse parsed))]]]))))
+    (let [lexed (timing "lex" (lex {:pos 0 :buf src}))
+          forms (timing "parse" (parse-many lexed))] 
+      (timing "render"
+       (h/html
+         [:head [:link {:rel :stylesheet :href "file:///home/russell/code.css"}]
+          [:div {:class :container}
+           [:pre (into [:code {:class "gutter"}]
+                   (for [line (range 1 (inc (count (clojure.string/split-lines src))))]
+                     [:span {:class :punctuation :id (format "L%d" line)} (format "%04d\n" line)]))]
+           [:div {:style "width:1px;"}]
+           [:pre {:class "source"} (into [:code] (mapv render-parse forms))]]])))))
 
+(binding [*timings-enabled* true]
+ (timing "total"
+   (spit
+     "/home/russell/asdf.html"
+     (render-code (slurp (io/resource "clojure/core.clj"))))))
 
-(let [lexed (time (lex {:pos 0
-                        :buf (str "[" (-> "clojure/core.clj" io/resource slurp) "]")}))
-      parsed (time (-> (parse-one lexed) :val :contents))]
-  {:tokens (count lexed)
-   :forms (count parsed)})
+(parse-one (lex {:pos 0 :buf "'(a b c)"}))
 
