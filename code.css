@@ -10,7 +10,8 @@ code, pre {
 	/*background: #171812;*/
 	background: #000000;
 	text-shadow: 0 1px rgba(0, 0, 0, 0.3);
-	font-family: Menlo, Monaco, Consolas, monospace;
+	/* Some of these fonts I don't actually have so I'm not sure if these names work.... */
+	font-family: "Iosevka Term", "Pragmata Pro", "Fira Code", Inconsolata, Menlo, Monaco, Consolas, monospace;
 	text-align: left;
 	white-space: pre;
 	word-spacing: normal;
