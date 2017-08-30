@@ -57,7 +57,7 @@ pre {
 .clojure-core { color: #b294bb }
 .java-class { color: #a3685a }
 .punctuation { color: #a6a6a0; }
-code a {  text-decoration: none; font-weight: bold;  color: inherit; }
+code a {  text-decoration: none; font-weight: bolder;  color: inherit; }
 
 .container { display:flex; flex-direction: row; } 
 .source { flex-grow:1; }

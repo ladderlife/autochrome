@@ -283,11 +283,11 @@
 (defn render-parse
   [t]
   (case (:type t)
-    :ws           [:span {:class :whitespace} (:text t)]
+    :ws           (:text t)
     :symbol       (render-symbol (parse-symbol t))
     :string       [:span {:class :string} (:text t)]
     :comment      [:span {:class :comment} (:text t)]
-    :data-reader  [:span {:class :metadata} (str "#" (:text t))]
+    :data-reader  [:span {:class :metadata} "#" (:text t)]
     :regex        [:span "#" [:span {:class :string} (:text t)]]
     :char-literal [:span {:class :string} (:text t)]
     :meta         [:span "^" (render-parse (:val t))] 
@@ -340,9 +340,6 @@
  (timing "total"
    (spit
      "/Users/russell/src/autochrome/example.html"
-     #_(render-code (slurp "/Users/russell/src/autochrome/a.clj"))
-     (render-code (slurp (io/resource "clojure/core.clj"))))))
-
-(parse-one (lex {:pos 0 :buf "'(a b c)"}))
-(parse-one (lex {:pos 0 :buf "#_(a b c)"}))
+     (render-code (slurp "/Users/russell/src/autochrome/a.clj"))
+     #_(render-code (slurp (io/resource "clojure/core.clj"))))))
 
