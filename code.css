@@ -48,7 +48,7 @@ pre {
 { color: #cc6666 }
 { color: #de935f }
 */
-.comment { color: #969896; font-style: italic }
+
 .ns-ref { color: #f0c674 }
 .string { color: #b5bd68 }
 .keyword { color: #8abeb7 }
@@ -63,6 +63,10 @@ code a {  text-decoration: none; font-weight: bold;  color: inherit; }
 .separator { width: 2px; }
 .unparsed { background-color: #ff0000; }
 .macro { color: #f92672; }
+
+.comment { color: #969896; font-style: italic }
+.hash-under * { color: #969896; font-style: italic; font-weight: normal; }
+.hash-under { color: #969896; font-style: italic }
 
 /*
 .keyword { color: #70c0b1 }

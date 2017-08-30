@@ -41,22 +41,10 @@
       (recur (inc idx))
       (.substring ^String buf pos idx))))
 
-(defrecord Substring [chars offset length])
-
-(defn substring
-  [^Substring parent ^long off ^long len]
-  (->Substring
-    (:chars parent)
-    (+ off (:offset parent))
-    len))
-
 (defn lex
   [orig-ctx]
   (loop [{:keys [^String buf pos line] :as ctx} (-> orig-ctx (assoc :line 1) transient)
          tokens (transient [])]
-    #_(when (< pos (.length buf))
-      (println "char = " (.charAt buf pos))
-      )
     (if (>= pos (.length buf))
       (persistent! tokens)
       (case (.charAt buf pos)
@@ -76,9 +64,6 @@
         \" (let [string-end (loop [i (inc pos)
                                    escaped false]
                               (cond
-                                (= i (.length buf))
-                                i
-
                                 (and (not escaped) (= \" (.charAt buf i)))
                                 (inc i)
 
@@ -97,14 +82,16 @@
              (recur (assoc! ctx :pos comment-end)
                     (conj! tokens {:type :comment :text (.substring buf pos comment-end)})))
         
-        \\ (recur (assoc! ctx :pos (+ 2 pos))
-                  (conj! tokens {:type :char-literal :text (str (.charAt buf (inc pos)))}))
-
+        \\ (let [literal-end (loop [i (+ 2 pos)]
+                               (if (clj-special (.charAt buf i))
+                                 i
+                                 (recur (inc i))))]
+             (recur (assoc! ctx :pos literal-end)
+                    (conj! tokens {:type :char-literal :text (.substring buf pos literal-end)})))
+        
         (let [^String sym (symbol-string ctx)]
           (recur (assoc! ctx :pos (+ pos (.length sym)))
                  (conj! tokens {:type :symbol :text sym})))))))
-
-#_(type (resolve (read-string "java.lang.String")))
 
 (defn resolve?
   [s]
@@ -148,8 +135,6 @@
 
 (def special-form? #{"def" "let" "if" "do" "fn" "loop" "recur" "try" "throw" "quote" "var"})
 
-(class? (resolve (symbol (namespace 'clojure.lang.Util/equiv))))
-
 (defn render-symbol
   [{:keys [val resolved ^String text]}]
   (cond
@@ -177,7 +162,6 @@
                     core? (conj :clojure-core))]
       [:span {:class (clojure.string/join " " (mapv name classes))} text])
 
-    
     (symbol? val)
     (let [rns (some-> val namespace symbol)]
       (cond
@@ -186,6 +170,9 @@
 
         :else
         [:span {:class :symbol} val]))
+
+    (contains? #{true false} val)
+    [:span {:class :macro} text]
 
     :else
     (if-let [cls (and (.endsWith text ".")
@@ -234,15 +221,20 @@
               nt (first ts)]
           ;; dispatch
           (case nt
-            \_ (-> (parse-one nt) :rest parse-one)
+            ;; \_ (-> (parse-one nt) :rest parse-one)
             \( (let [{:keys [val rest]} (parse-one ts)]
                  {:val {:type :lambda :text val} :rest rest})
-            \{ (update-in (parse-one ts) [:val :delim] (constantly"#{"))
+            \{ (assoc-in (parse-one ts) [:val :delim] "#{")
 
             \'
             (let [{:keys [val rest]} (parse-one ts)]
               {:val {:type :var-quote :text (-> val :val :text)} :rest rest})
 
+            {:type :symbol :text "_"} 
+            (let [{:keys [val rest]} (parse-one (next ts))]
+              ;; TODO: support for {#_ #_ a b} = {}
+              {:val {:type :hash-under :text val} :rest rest})
+            
             {:type :symbol :text "?"}
             (let [{:keys [val rest]} (parse-one ts)]
               {:val {:type :reader-conditional :text val} :rest rest})
@@ -273,9 +265,10 @@
           {:val {:type :coll :delim (closed->open closer) :contents forms}
            :rest (next ts)}
           (let [{:keys [val rest]} (parse-one ts)]
-            (recur (conj forms val) rest))
-          #_(recur (conj forms t) (next ts))))
-      (throw (ex-info "expecting closer" {:closer closer :ts ts})))))
+            (recur (conj forms val) rest))))
+      (do
+        (fipp.edn/pprint forms)
+        (throw (ex-info "expecting closer" {:closer closer :ts ts }))))))
 
 (defn parse-many
   [ts]
@@ -295,12 +288,13 @@
     :string       [:span {:class :string} (:text t)]
     :comment      [:span {:class :comment} (:text t)]
     :data-reader  [:span {:class :metadata} (str "#" (:text t))]
-    :regex        [:span "#" [:span {:class :strign} (:text t)]]
+    :regex        [:span "#" [:span {:class :string} (:text t)]]
     :char-literal [:span {:class :string} (:text t)]
     :meta         [:span "^" (render-parse (:val t))] 
     :quote        [:span "'" (render-parse (:val t))]
     :var-quote    [:span "#'" [:span {:class :var-ref} (:text t)]]
-
+    :hash-under   [:span {:class :hash-under} "#_" (render-parse (:text t))]
+    
     :coll
     (into [:span (:delim t)]
           (conj (mapv render-parse (:contents t)) (open->closed (:delim t))))
@@ -334,7 +328,7 @@
           forms (timing "parse" (parse-many lexed))] 
       (timing "render"
        (h/html
-         [:head [:link {:rel :stylesheet :href "file:///home/russell/code.css"}]
+         [:head [:link {:rel :stylesheet :href "code.css"}]
           [:div {:class :container}
            [:pre (into [:code {:class "gutter"}]
                    (for [line (range 1 (inc (count (clojure.string/split-lines src))))]
@@ -345,8 +339,10 @@
 (binding [*timings-enabled* true]
  (timing "total"
    (spit
-     "/home/russell/asdf.html"
+     "/Users/russell/src/autochrome/example.html"
+     #_(render-code (slurp "/Users/russell/src/autochrome/a.clj"))
      (render-code (slurp (io/resource "clojure/core.clj"))))))
 
 (parse-one (lex {:pos 0 :buf "'(a b c)"}))
+(parse-one (lex {:pos 0 :buf "#_(a b c)"}))
 
