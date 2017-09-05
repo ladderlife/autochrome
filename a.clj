@@ -118,20 +118,34 @@
 
 (def ^:const clojure-core-ns (find-ns 'clojure.core))
 
-(defn add-link
-  [text meta]
+(defn split-nsed-ref
+  [^String text]
+  (if (not (.contains text "/"))
+    text
+    (let [slash-idx (.indexOf text "/")
+          ns-text   (.substring text 0 slash-idx)
+          sym-name  (.substring text (inc slash-idx))]
+      [:span {:class :punctuation}
+       [:span {:class :ns-ref} ns-text]
+       "/"
+       [:span {:class :var-ref} sym-name]])))
+
+(defn symbol-text->elem
+  [^String text meta]
   (let [props
         (cond
           (= clojure-core-ns (:ns meta))
           {:href (format "https://clojuredocs.org/clojure.core/%s" (:name meta))}
-                 
+
           (:file meta)
           {:href (str (ns-name (:ns meta)) ".html#L" (:line meta))})]
     [:a
      (cond-> props
        (:doc meta)
        (assoc :title (:doc meta)))
-     text]))
+     (cond-> text
+       (.contains text "/")
+       (split-nsed-ref))]))
 
 (def special-form? #{"def" "let" "if" "do" "fn" "loop" "recur" "try" "throw" "quote" "var"})
 
@@ -155,12 +169,14 @@
 
     (meta resolved)
     (let [m (meta resolved)
-          core? (= clojure-core-ns (:ns m))
-          text (add-link text m)
+          core? (identical? clojure-core-ns (:ns m))
           classes (cond-> [:var-ref]
                     (:macro m) (conj :macro)
+                    (:dynamic m) (conj :dynamic)
                     core? (conj :clojure-core))]
-      [:span {:class (clojure.string/join " " (mapv name classes))} text])
+      [:span
+       {:class (clojure.string/join " " (mapv name classes))}
+       (symbol-text->elem text meta)])
 
     (symbol? val)
     (let [rns (some-> val namespace symbol)]
@@ -343,3 +359,6 @@
      (render-code (slurp "/Users/russell/src/autochrome/a.clj"))
      #_(render-code (slurp (io/resource "clojure/core.clj"))))))
 
+(parse-many (lex {:pos 0 :buf "^bytes burbongleroy"}))
+
+(meta #'*timings-enabled*)

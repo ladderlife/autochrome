@@ -65,6 +65,9 @@ code a {  text-decoration: none; font-weight: bolder;  color: inherit; }
 .unparsed { background-color: #ff0000; }
 .macro { color: #f92672; }
 
+.ns-ref { color: #e6db74; }
+.dynamic { color: #fd971f; }
+
 .comment { color: #969896; font-style: italic }
 .hash-under * { color: #969896; font-style: italic; font-weight: normal; }
 .hash-under { color: #969896; font-style: italic }
@@ -130,9 +133,6 @@ code a {  text-decoration: none; font-weight: bolder;  color: inherit; }
 
 .token.atrule,
 .token.attr-value,
-.token.function {
-	color: #e6db74;
-}
 
 .keyword {
 	color: #66d9ef;
