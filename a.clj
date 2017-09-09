@@ -138,7 +138,11 @@
           {:href (format "https://clojuredocs.org/clojure.core/%s" (:name meta))}
 
           (:file meta)
-          {:href (str (ns-name (:ns meta)) ".html#L" (:line meta))})]
+          {:href (str (ns-name (:ns meta)) ".html#L" (:line meta))}
+
+          ;; TODO: the least we can do is put a link to a google search for <ns name> documentation
+          ;; TODO: make it so we don't choke on angle brackets....
+          )]
     [:a
      (cond-> props
        (:doc meta)
@@ -193,7 +197,6 @@
     :else
     (if-let [cls (and (.endsWith text ".")
                       (some-> text (.substring 0 (dec (.length text))) symbol resolve))]
-      ;; TODO: fix this for java class names (instead of just java constructor calls)
       [:span {:class :java-class} [:a {:href (javadoc-url cls)} text]]
       [:span {:class :unknown} text])))
 
@@ -356,9 +359,7 @@
  (timing "total"
    (spit
      "/Users/russell/src/autochrome/example.html"
-     (render-code (slurp "/Users/russell/src/autochrome/a.clj"))
-     #_(render-code (slurp (io/resource "clojure/core.clj"))))))
+     #_(render-code (slurp "/Users/russell/src/autochrome/a.clj"))
+     (render-code (slurp (io/resource "clojure/core.clj"))))))
 
-(parse-many (lex {:pos 0 :buf "^bytes burbongleroy"}))
 
-(meta #'*timings-enabled*)
