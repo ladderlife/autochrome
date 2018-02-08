@@ -1,6 +1,7 @@
 (ns autochrome.difflog
   (:require [clojure.string :as string]
             [autochrome.components :as comp]
+            [autochrome.annotation :as ann]
             [autochrome.diff :as diff]
             [autochrome.page :as page]
             [autochrome.parse :as parse]
@@ -10,15 +11,22 @@
   [ann a b]
   (comp/panes
    {}
-   (some->> a list (page/diff-pane "the absolute" ann))
-   (some->> b list (page/diff-pane "worst hack" ann))))
+   (some->> a list (page/diff-pane "the absolute"
+                                   (doto (ann/syntax-highlighting a)
+                                     (.putAll ann))))
+   (some->> b list (page/diff-pane "worst hack"
+                                   (doto (ann/syntax-highlighting a)
+                                     (.putAll ann))))))
+
 
 (defn diff-log
   [aroot broot]
-  (let [goalstate (diff/dforms aroot broot)]
+  (let [goalstate (diff/dforms aroot broot)
+        maxdigits (count (str (count @diff/explored-states)))]
     (println 'explored (count @diff/explored-states) 'states)
-    (for [c @diff/explored-states
-          :let [idhc (System/identityHashCode c)
+    (for [index (range (count @diff/explored-states))
+          :let [c (nth @diff/explored-states index)
+                idhc (System/identityHashCode c)
                 info (get @diff/state-info idhc)]]
       (let [shead (first (.-source c))
             thead (first (.-target c))]
@@ -28,6 +36,7 @@
           (dom/span
            {}
            (str
+            (format (str "#%0" maxdigits "d ") index)
             (if (identical? c goalstate) "goal! " "")
             "(" (string/join " " (map name (:attrib info))) ")"
             " [" (System/identityHashCode c) "]"

@@ -1,26 +1,31 @@
 (ns autochrome.core
   (:require [autochrome.page :as page]
-            [clj-http.client :as http])
-  
+            [clj-http.client :as http]
+            [clojure.tools.cli :as cli])
+  (:import [java.awt Desktop]
+           [java.io File])
   (:gen-class))
+
+(def cli-options
+  [["-o" "--open" "If set, write HTML to a temp file and try to open it in a browser"]])
 
 (defn -main
   [& args]
-  #_(println
-    (http/get
-      "https://raw.githubusercontent.com/metabase/metabase/f2816df9b3f9731a38f55aeac3c8541a193965e8/src/metabase/api/card.clj"))
-  (println 
+  (let [{:keys [options arguments]} (cli/parse-opts args cli-options)
+        [a b c] arguments
+        the-page (cond
+                   c (page/pull-request-diff a b (Integer/parseInt c))
+                   b (page/local-diff a b))]
     (cond
-      (empty? args)
-      (page/merge-base-diff "HEAD")
-     
-      (= 1 (count args))
-      (page/merge-base-diff (first args))
-     
-      (= 3 (count args))
-      (let [[owner repo numstr] args
-            num (Integer/parseInt numstr)]
-        (page/pull-request-diff owner repo num))
-     
-      :else "give <reference> e.g. HEAD to compare with origin/master, or give <owner repo number> for a public github PR"))
+      (nil? the-page)
+      (println "expected 2 or 3 args [treeA treeB] or [owner repo pr-id] ")
+
+      (and (:open options) (Desktop/isDesktopSupported))
+      (.browse (Desktop/getDesktop)
+               (.toURI
+                (doto (File/createTempFile "diff" ".html")
+                  (spit the-page))))
+      :else (println the-page)))
   (shutdown-agents))
+
+

@@ -4,29 +4,26 @@
             [clojure.string :as string]
             [clojure.pprint :as pprint]))
 
-(def ^:dynamic token "burbongleroy:00821ab66c37909e0d9ad5778ab3eb9a365ce53b")
-
 (defn pr-request-params
   [owner repo num]
   (let [url (format "https://api.github.com/repos/%s/%s/pulls/%s" owner repo num)]
     {:method :get
      :url url
-     ;; :basic-auth token
      :content-type :json}))
 
 (defn pr-diffinfo
   [owner repo num]
   (let [params (pr-request-params owner repo num)]
-    (try
-      (let [info (-> params (assoc :as :json) http/request :body)
-            diff (-> params
-                   (assoc :accept "application/vnd.github.VERSION.diff")
-                   http/request :body)]
-        {:head (-> info :head :sha)
-         :base (-> info :base :sha)
-         :diff diff})
-      (catch Exception e
-        (throw (Exception. (str "fetching  " (pr-str (:url params))) e))))))
+    {:info (try (-> params
+                    (assoc :as :json)
+                    http/request :body)
+                (catch Exception e
+                  (throw (Exception. (str "getting info url=" (pr-str (:url params)))))))
+     :diff (try (-> params
+                    (assoc :accept "application/vnd.github.VERSION.diff")
+                    http/request :body)
+                (catch Exception e
+                  (throw (Exception. "getting diff"))))}))
 
 (defn parse-hunk-spec
   [hunk]
@@ -92,23 +89,26 @@
                        lines)))
             (recur context lines)))))))
 
-(defn apply-patches
-  [old-text patches]
-  (if (nil? old-text)
-    ;; damn newline at end of file....
-    (string/join "\n" (conj (:new (first patches)) ""))
-    (let [lines (.split old-text "\n")
-          line->patch (into {} (map (juxt (comp :old-start :hunk) identity) patches))
+
+;; need to apply patches in reverse because I don't know how to get the
+;; old text to diff from using the github api
+(defn reverse-apply-patches
+  [new-text patches]
+  (if-not new-text
+    (string/join "\n" (conj (map :old patches) ""))
+    (let [lines (.split new-text "\n")
+          line->patch (into {} (map (juxt (comp :new-start :hunk) identity) patches))
           sb (StringBuilder.)]
       (loop [idx 0]
         (if-not (< idx (count lines))
           (.toString sb)
           (let [linenum (inc idx)]
-            (if-let [patch (line->patch linenum)]
-              (do (doseq [line (:new patch)]
-                    (.append sb line)
-                    (.append sb "\n"))
-                  (recur (+ idx (:old-lines (:hunk patch)))))
+            (if-let [{:keys [hunk] :as patch} (line->patch linenum)]
+              (do
+                (doseq [line (:old patch)]
+                  (.append sb line)
+                  (.append sb "\n"))
+                (recur (dec (+ (:new-start hunk) (:new-lines hunk)))))
               (do (.append sb (nth lines idx))
                   (.append sb "\n")
                   (recur (inc idx))))))))))
@@ -121,7 +121,6 @@
        (http/request
          {:method :get
           :url url
-          ;; :basic-auth token
           :content-type :json
           :accept "application/vnd.github.VERSION.raw"}))
       (catch Exception e
@@ -142,39 +141,53 @@
 
 (defn slurp-blob-from-local-git
   [sha]
-  (:out (sh/sh "git" "cat-file" "blob" sha)))
+  (let [result (sh/sh "git" "cat-file" "blob" sha)]
+    (when (= 0 (:exit result))
+      (:out result))))
 
 (defn ->changed-files
-  [rawdiff slurp-old-blob-fn]
+  [rawdiff slurp-new-blob-fn]
   (let [all-patches (diff->patches rawdiff)
-        old-path->text
+        new-path->text
         (into {}
-              (for [old-path (set (map :old-path all-patches))
-                    :when (not= "/dev/null" old-path)]
-                [old-path (future (slurp-old-blob-fn old-path))]))]
-    (for [[new-path patches] (group-by :new-path all-patches)]
-      (let [old-path (:old-path (first patches)) ; old-path is the same for all patches
-            old-text (some-> old-path old-path->text deref)]
-        (cond-> {:new-path new-path :new-text (apply-patches old-text patches)}
-          old-path (assoc :old-path old-path)
-          old-text (assoc :old-text old-text))))))
+              (for [new-path (set (map :new-path all-patches))]
+                [new-path (future (slurp-new-blob-fn new-path))]))]
+    (concat
+     (for [[new-path patches] (group-by :new-path all-patches)
+           :when (not= "/dev/null" new-path)]
+       (let [new-path (:new-path (first patches))
+             new-text @(new-path->text new-path)
+             old-path (:old-path (first patches))
+             old-text (reverse-apply-patches new-text patches)]
+         #_(println old-path  (count old-text) "->" new-path (count new-text))
+         (cond-> {:new-path new-path :new-text new-text}
+           old-path (assoc :old-path old-path)
+           old-text (assoc :old-text old-text))))
+     (for [[old-path patches] (->> all-patches
+                                   (filter #(= "/dev/null" (:new-path %)))
+                                   (group-by :old-path))]
+       {:old-path old-path
+        :old-text (string/join "\n" (conj (mapcat :old patches) ""))
+        :new-path "/dev/null"
+        :new-text ""}))))
 
 (defn pull-request-diff
   [owner repo num]
-  (let [{:keys [base diff]} (pr-diffinfo owner repo num)]
-    (->changed-files diff #(slurp-blob-from-github owner repo base %))))
+  (let [{:keys [diff info]} (pr-diffinfo owner repo num)
+        src (-> info :head :repo)]
+    (->changed-files
+     diff
+     #(slurp-blob-from-github (-> src :owner :login) (:name src) (-> info :head :sha) %))))
 
 (defn local-diff
   [oldref newref]
-  (let [old-tree (ls-tree oldref)
+  (let [new-tree (ls-tree newref)
         rawdiff (:out (sh/sh "git" "diff" oldref newref))]
-    (->changed-files rawdiff #(slurp-blob-from-local-git (get old-tree %)))))
+    (->changed-files
+     rawdiff
+     #(when-let [sha (get new-tree %)]
+        (slurp-blob-from-local-git sha)))))
 
-(defn local-merge-base-diff
-  "this is what github shows you in the PR diff"
-  ([] (local-merge-base-diff "HEAD"))
-  ([ref]
-   (local-diff
-    (.trim (:out (sh/sh "git" "merge-base" ref "origin/master")))
-    ref)))
-
+(defn merge-base
+  [head base]
+  (.trim (:out (sh/sh "git" "merge-base" head base))))

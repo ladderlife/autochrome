@@ -131,6 +131,16 @@
              (some->> a list (diff-pane (str linkbase (md5sum (:path old)) "L") ann))
              (some->> b list (diff-pane (str linkbase (md5sum (:path new)) "R") ann))))))))
 
+
+(defn delete-everything
+  [root]
+  (assoc root :contents (map #(assoc % :annotation :deleted) (:contents root))))
+
+;; don't restrict width to 50% when there is no other file to display
+(defn one-file-diff
+  [linkbase path lr root]
+  (comp/root {} (diff-pane (str linkbase (md5sum path) lr) {} (:contents root))))
+
 (defn diff-page
   [linkbase title changed-files]
   (page
@@ -138,21 +148,27 @@
    (comp/root
     {}
     (->> changed-files
-         (filter (comp clojure-file? :new-path))
+         (filter #(or (clojure-file? (:new-path %))
+                      (and (= "/dev/null" (:new-path %))
+                           (clojure-file? (:old-path %)))))
          (mapcat
           (fn [{:keys [old-path old-text new-path new-text]}]
             [(comp/heading (cond
                              (= old-path "/dev/null") (str new-path " (new file)")
+                             (= new-path "/dev/null") (str old-path " (deleted)")
                              (not= old-path new-path) (str new-path " -> " new-path)
                              :else new-path))
              (binding [*out* *err*]
-               (println new-path))
-             (if-not old-text
-               (comp/root
-                {}
-                (diff-pane (str linkbase (md5sum new-path) "R")
-                           {}
-                           (:contents (parse/parse new-text))))
+               (println old-path " -> " new-path))
+             (cond
+               (= old-path "/dev/null")
+               (one-file-diff linkbase new-path "R" (parse/parse new-text))
+
+               (= new-path "/dev/null")
+               (one-file-diff linkbase old-path "L"
+                              (-> old-text parse/parse delete-everything))
+
+               :else
                (two-file-diff
                 linkbase
                 {:path old-path :root (parse/parse old-text)}
@@ -164,21 +180,21 @@
   [owner repo num]
   (format "https://github.com/%s/%s/pull/%s/files#diff-" owner repo num))
 
+;; these return the html as string
 (defn pull-request-diff
-  "return full html text"
   [owner repo num]
   (diff-page
    (github-pr-diff-linkbase owner repo num)
    (str owner "/" repo " #" num)
    (github/pull-request-diff owner repo num)))
 
-(defn merge-base-diff
-  "return full html text"
-  ([rev] (merge-base-diff "whatever" rev))
-  ([linkbase rev]
-   (diff-page
-     linkbase
-     (str "merge base diff " rev)
-     (github/local-merge-base-diff rev))))
+(defn local-diff
+  [a b]
+  (diff-page
+   "local"
+   (str a "..." b)
+   (github/local-diff a b)))
+
+
 
 

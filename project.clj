@@ -8,7 +8,8 @@
                  [org.omcljs/om "1.0.0-beta1"]
                  [garden "1.3.3"]
                  [cheshire "5.8.0"]
-                 [clj-http "3.7.0"]]
+                 [clj-http "3.7.0"]
+                 [org.clojure/tools.cli "0.3.5"]]
   :main autochrome.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}})

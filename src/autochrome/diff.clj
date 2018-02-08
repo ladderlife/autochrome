@@ -61,9 +61,10 @@
   [source target]
   (let [size-map (doto (IdentityHashMap.) (.put nil 0) (tree/put-sizes source) (tree/put-sizes target))
         hashes (doto (IdentityHashMap.) (tree/put-hashes source) (tree/put-hashes target))
-        start-state (DiffState. 0 (.get size-map source) (.get size-map target)
-                      (:contents source) (:contents target)
-                      (DiffContext. [] []) [] [])
+        ;; use double the real size so that our hacks can't make the heuristic inadmissible 
+        start-state (DiffState. 0 (* 2 (.get size-map source)) (* 2 (.get size-map target))
+                                (:contents source) (:contents target)
+                                (DiffContext. [] []) [] [])
         real-cost (doto (HashMap.) (.put start-state 0))
         pq (doto (PriorityQueue.) (.offer start-state))
         explore (fn [ncost predstate sremain tremain nsource ntarget nctx added deleted]
@@ -73,7 +74,7 @@
                     (swap! state-info update (System/identityHashCode ds) assoc :pred (System/identityHashCode predstate))
                     (when (or (nil? prev-cost) (< ncost prev-cost))
                       (swap! state-info update (System/identityHashCode ds) update :attrib conj
-                        (if (nil? prev-cost) :best :better))
+                             (if (nil? prev-cost) :best :better))
                       (.put real-cost ds ncost)
                       (.offer pq ds))))]
     (reset! explored-states [start-state])
@@ -98,8 +99,8 @@
                 (explore cost c (- sremain ssize) (- tremain tsize) smore tmore context (.-added c) (.-deleted c))
                 (do
                   (if shead
-                    ;; deletion
-                    (explore (+ cost ssize) c (- sremain ssize) tremain smore tforms context (.-added c) (conj (.-deleted c) shead))
+                    ;; addition/deletion costs an extra point so that we prefer removing entire lists
+                    (explore (inc (+ cost ssize)) c (- sremain ssize) tremain smore tforms context (.-added c) (conj (.-deleted c) shead))
                     ;; if we are at the end of the source seq, pop back out if we can
                     (when (not= 0 (count prevsources))
                       (explore cost c sremain tremain (peek prevsources) tforms
@@ -107,15 +108,15 @@
 
                   (if thead
                     ;; addition
-                    (explore (+ cost tsize) c sremain (- tremain tsize) sforms tmore context (conj (.-added c) thead) (.-deleted c))
+                    (explore (inc (+ cost tsize)) c sremain (- tremain tsize) sforms tmore context (conj (.-added c) thead) (.-deleted c))
                     ;; pop back out
                     (when (not= 0 (count prevtargets))
                       (explore cost c sremain tremain sforms (peek prevtargets)
                         (DiffContext. prevsources (pop prevtargets)) (.-added c) (.-deleted c))))
                   
-                  ;; going into matching collections is a zero-cost operation
+                  ;; going into matching collections is not costless, again to prefer deleting entire lists
                   (when (and (tree/branch? shead) (tree/branch? thead) (= (:delim shead) (:delim thead)))
-                    (explore cost c sremain tremain (tree/->children shead) (tree/->children thead)
+                    (explore (inc cost) c sremain tremain (tree/->children shead) (tree/->children thead)
                       (DiffContext. (conj prevsources smore) (conj prevtargets tmore)) (.-added c) (.-deleted c))) 
                   
                   ;; going into source node corresponds to stripping a pair of parens
