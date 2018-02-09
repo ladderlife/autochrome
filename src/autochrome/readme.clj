@@ -314,7 +314,7 @@
        (loginset (nth logs 8))
        (caption "Then we add " (fixed "->"))
        (loginset (nth logs 12))
-       (caption "Now, we enqueue #20, where we delete " (fixed "(captionrintln \"hello\")") ":")
+       (caption "Now, we enqueue #20, where we delete " (fixed "(println \"hello\")") ":")
        (loginset (nth logs 20))
        (caption "It turns out that since deleting " (fixed "(println \"hello\")") " has a relatively high cost, "
                 "  we go through a bunch of other states before we finally pop #20.  "
