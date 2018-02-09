@@ -317,7 +317,7 @@
        (caption "Now, we enqueue #20, where we delete " (fixed "(captionrintln \"hello\")") ":")
        (loginset (nth logs 20))
        (caption "It turns out that since deleting " (fixed "(println \"hello\")") " has a relatively high cost, "
-                "  we go through a bunch of other states before we finally pop it.  "
+                "  we go through a bunch of other states before we finally pop #20.  "
                 ""
                 "But once we do, we can match the identical subtrees and get to here:")
        (loginset (nth logs 85))
