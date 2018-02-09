@@ -318,7 +318,7 @@
        (loginset (nth logs 20))
        (caption "It turns out that since deleting " (fixed "(println \"hello\")") " has a relatively high cost, "
                 "  we go through a bunch of other states before we finally pop #20.  "
-                ""
+                (dom/br {})
                 "But once we do, we can match the identical subtrees and get to here:")
        (loginset (nth logs 85))
        (caption "Here we are at the end of the source list (the defn body), "
