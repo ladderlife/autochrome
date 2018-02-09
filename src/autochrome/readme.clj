@@ -289,7 +289,7 @@
                         (dom/li {} (fixed "#000") "  is the step in which this state was added.  ")
                         (dom/li {} (fixed "(popped)") "  means this state was popped off the priority queue.  ")
                         (dom/li {} (fixed "-0/+0") "  is deletions/additions")
-                        (dom/li {} (fixed "cost 0/-92") "  is the real cost / heuristic cost.  Meaningless for start node.")
+                        (dom/li {} (fixed "cost 0/-92") "  is the heuristic cost / real cost.  Meaningless for start node.")
                         (dom/li {} (fixed "remain 90/92") "  is the remaining cost of the source and target trees."))
                 (caption "Note that real cost = heuristic cost - max(source remaining, target remaining).  "
                          "By heuristic cost, I mean the estimated total distance from the start to the goal, used as the key in the priority queue, "
