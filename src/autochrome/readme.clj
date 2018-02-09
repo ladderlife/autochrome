@@ -18,7 +18,7 @@
      :font-size "18px"}]
    [:p {:text-indent "2em"}]
    [:.diffpane {:width "unset"}]
-   [:.textcontainer {:width "64%"
+   [:.textcontainer {:width "50%"
                      :color "white"}]
    [:.title {:font-size "32px"}]
    [:.sectiontitle {:font-size "24px"
@@ -292,10 +292,10 @@
                         (dom/li {} (fixed "cost 0/-92") "  is the real cost / heuristic cost.  Meaningless for start node.")
                         (dom/li {} (fixed "remain 90/92") "  is the remaining cost of the source and target trees."))
                 (caption "Note that real cost = heuristic cost - max(source remaining, target remaining).  "
-                         "By heuristic cost, I mean the estimated distance to the goal, used as the key in the priority queue, "
+                         "By heuristic cost, I mean the estimated total distance from the start to the goal, used as the key in the priority queue, "
                          "or " (dom/i {} "g(n) + h(n)") " in "
                          (dom/a {:href "https://en.wikipedia.org/wiki/A*_search_algorithm#Description"}
-                                "typical A* notation.")))
+                                "typical A* notation.  ")))
        (caption "After we enter the main loop and pop the start state, we easily match the next two subtrees:")
        (loginset
         (comp/root {}
