@@ -1,6 +1,5 @@
 (ns autochrome.diff
-  (:require [autochrome.tree :as tree]
-            [autochrome.parse :as parse])
+  (:require [autochrome.tree :as tree])
   (:import [clojure.lang Util]
            [java.util HashMap PriorityQueue IdentityHashMap]))
 
@@ -61,7 +60,7 @@
   [source target]
   (let [size-map (doto (IdentityHashMap.) (.put nil 0) (tree/put-sizes source) (tree/put-sizes target))
         hashes (doto (IdentityHashMap.) (tree/put-hashes source) (tree/put-hashes target))
-        ;; use double the real size so that our hacks can't make the heuristic inadmissible 
+        ;; use double the real size so that our hacks can't make the heuristic inadmissible
         start-state (DiffState. 0 (* 2 (.get size-map source)) (* 2 (.get size-map target))
                                 (:contents source) (:contents target)
                                 (DiffContext. [] []) [] [])
@@ -95,7 +94,7 @@
             (let [ssize (.get size-map shead)
                   tsize (.get size-map thead)]
               ;; if we can match subtrees, don't bother doing anything else
-              (if (and shead thead (= (.get hashes shead) (.get hashes thead)) (= shead thead))
+              (if (and shead thead (= (.get hashes shead) (.get hashes thead)))
                 (explore cost c (- sremain ssize) (- tremain tsize) smore tmore context (.-added c) (.-deleted c))
                 (do
                   (if shead
@@ -104,7 +103,7 @@
                     ;; if we are at the end of the source seq, pop back out if we can
                     (when (not= 0 (count prevsources))
                       (explore cost c sremain tremain (peek prevsources) tforms
-                        (DiffContext. (pop prevsources) prevtargets) (.-added c) (.-deleted c))))
+                               (DiffContext. (pop prevsources) prevtargets) (.-added c) (.-deleted c))))
 
                   (if thead
                     ;; addition
@@ -112,22 +111,22 @@
                     ;; pop back out
                     (when (not= 0 (count prevtargets))
                       (explore cost c sremain tremain sforms (peek prevtargets)
-                        (DiffContext. prevsources (pop prevtargets)) (.-added c) (.-deleted c))))
-                  
+                               (DiffContext. prevsources (pop prevtargets)) (.-added c) (.-deleted c))))
+
                   ;; going into matching collections is not costless, again to prefer deleting entire lists
                   (when (and (tree/branch? shead) (tree/branch? thead) (= (:delim shead) (:delim thead)))
                     (explore (inc cost) c sremain tremain (tree/->children shead) (tree/->children thead)
-                      (DiffContext. (conj prevsources smore) (conj prevtargets tmore)) (.-added c) (.-deleted c))) 
-                  
+                             (DiffContext. (conj prevsources smore) (conj prevtargets tmore)) (.-added c) (.-deleted c)))
+
                   ;; going into source node corresponds to stripping a pair of parens
                   (when (tree/branch? shead)
                     (explore (+ 2 cost) c sremain tremain (tree/->children shead) tforms
-                      (DiffContext. (conj prevsources smore) prevtargets) (.-added c) (.-deleted c)))
+                             (DiffContext. (conj prevsources smore) prevtargets) (.-added c) (.-deleted c)))
 
-                  ;; go into target node is wrapping with a new set of parens  
+                  ;; going into target node is wrapping with a new set of parens
                   (when (and (tree/branch? thead))
                     (explore (+ 2 cost) c sremain tremain sforms (tree/->children thead)
-                      (DiffContext. prevsources (conj prevtargets tmore)) (.-added c) (.-deleted c)))))
+                             (DiffContext. prevsources (conj prevtargets tmore)) (.-added c) (.-deleted c)))))
               (recur))))))))
 
 (defn diffstate->annotations

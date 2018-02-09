@@ -19,6 +19,7 @@
                                      (.putAll ann))))))
 
 
+
 (defn diff-log
   [aroot broot]
   (let [goalstate (diff/dforms aroot broot)
@@ -39,7 +40,6 @@
             (format (str "#%0" maxdigits "d ") index)
             (if (identical? c goalstate) "goal! " "")
             "(" (string/join " " (map name (:attrib info))) ")"
-            " [" (System/identityHashCode c) "]"
             " -" (count (.-deleted c))
             ",+" (count (.-added c))
             " cost " (.-cost c)
@@ -57,13 +57,13 @@
             (.put thead :thead))
           aroot
           broot)
-         (comp/spacer))))))
+         #_(comp/spacer))))))
 
 (defn write-difflog
   [outdir title astr bstr]
   (let [a (parse/parse-one astr)
         b (parse/parse-one bstr)]
-    (diff/dforms a b)
+    #_(diff/dforms a b)
     (spit (str outdir "/" title ".html")
       (page/page
         title
