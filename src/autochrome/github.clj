@@ -38,56 +38,66 @@
     s
     (.substring s (count pre))))
 
-(defn diff->patches
+(defn parse-diff
   [diff]
   (let [lines (string/split-lines diff)
         put-line (fn [c k l] (update c k conj (.substring l 1)))
         line->path #(-> (second (.split % " "))
                         (strip-prefix "a/")
                         (strip-prefix "b/"))
-        result (volatile! (transient []))
-        default-ctx {:new [] :old []}]
+        hunks (volatile! (transient []))
+        filechanges (volatile! (transient []))
+        default-ctx {:new [] :old [] :start 0}]
     (loop [context default-ctx
-           [line & lines] lines]
-      (if-not line
-        (persistent! (vswap! result conj! context))
-        (cond
-          (.startsWith line "diff --git")
-          (do (when (:hunk context)
-                (vswap! result conj! context))
-              (recur default-ctx lines))
+           line-index 0]
+      (let [line (get lines line-index)]
+       (if-not line
+         {:hunks (persistent! (vswap! hunks conj! context))
+          :filechanges
+          (persistent!
+           (vswap! filechanges conj!
+                   (assoc context :raw
+                          (subvec lines (:start context) line-index))))}
+         (cond
+           (.startsWith line "diff --git")
+           (do (when (:hunk context)
+                 (vswap! hunks conj! context)
+                 (vswap! filechanges conj!
+                         (assoc context :raw
+                                (subvec lines (:start context) line-index))))
+               (recur (assoc default-ctx :start line) (inc line-index)))
 
-          (.startsWith line "---")
-          (recur (assoc context :old-path (line->path line)) lines)
+           (.startsWith line "---")
+           (recur (assoc context :old-path (line->path line)) (inc line-index))
 
-          (.startsWith line "+++")
-          (recur (assoc context :new-path (line->path line)) lines)
+           (.startsWith line "+++")
+           (recur (assoc context :new-path (line->path line)) (inc line-index))
 
-          (.startsWith line "@@")
-          (do (when (:hunk context)
-                (vswap! result conj! context))
-              (recur
-               (merge context (assoc default-ctx :hunk (parse-hunk-spec line)))
-               lines))
+           (.startsWith line "@@")
+           (do (when (:hunk context)
+                 (vswap! hunks conj! context))
+               (recur
+                (merge context (assoc default-ctx :hunk (parse-hunk-spec line)))
+                (inc line-index)))
 
-          (.startsWith line "+")
-          (recur (put-line context :new line) lines)
+           (.startsWith line "+")
+           (recur (put-line context :new line) (inc line-index))
 
-          (.startsWith line "-")
-          (recur (put-line context :old line) lines)
+           (.startsWith line "-")
+           (recur (put-line context :old line) (inc line-index))
 
-          :else
-          (if-let [{:keys [old-lines new-lines]} (:hunk context)]
-            (let [nnew (count (:new context))
-                  nold (count (:old context))]
-              (if (and (= nnew new-lines) (= nold old-lines))
-                (do (vswap! result conj! context)
-                    (recur (dissoc context :hunk) lines))
-                (recur (-> context
-                           (put-line :new line)
-                           (put-line :old line))
-                       lines)))
-            (recur context lines)))))))
+           :else
+           (if-let [{:keys [old-lines new-lines]} (:hunk context)]
+             (let [nnew (count (:new context))
+                   nold (count (:old context))]
+               (if (and (= nnew new-lines) (= nold old-lines))
+                 (do (vswap! hunks conj! context)
+                     (recur (dissoc context :hunk) (inc line-index)))
+                 (recur (-> context
+                            (put-line :new line)
+                            (put-line :old line))
+                        (inc line-index))))
+             (recur context (inc line-index)))))))))
 
 
 ;; need to apply patches in reverse because I don't know how to get the
@@ -139,37 +149,34 @@
    {}
    (-> (sh/sh "git" "ls-tree" "-r" rev) :out (.split "\n"))))
 
-(defn slurp-blob-from-local-git
-  [sha]
-  (let [result (sh/sh "git" "cat-file" "blob" sha)]
-    (when (= 0 (:exit result))
-      (:out result))))
-
 (defn ->changed-files
   [rawdiff slurp-new-blob-fn]
-  (let [all-patches (diff->patches rawdiff)
+  (let [{:keys [hunks filechanges]} (parse-diff rawdiff)
         new-path->text
         (into {}
-              (for [new-path (set (map :new-path all-patches))]
-                [new-path (future (slurp-new-blob-fn new-path))]))]
+              (for [new-path (set (map :new-path hunks))]
+                [new-path (future (slurp-new-blob-fn new-path))]))
+        new-path->rawdiff (group-by :new-path filechanges)
+        old-path->rawdiff (group-by :old-path filechanges)]
     (concat
-     (for [[new-path patches] (group-by :new-path all-patches)
+     (for [[new-path patches] (group-by :new-path hunks)
            :when (not= "/dev/null" new-path)]
        (let [new-path (:new-path (first patches))
              new-text @(new-path->text new-path)
              old-path (:old-path (first patches))
              old-text (reverse-apply-patches new-text patches)]
-         #_(println old-path  (count old-text) "->" new-path (count new-text))
-         (cond-> {:new-path new-path :new-text new-text}
+         (cond-> {:new-path new-path :new-text new-text
+                  :rawdiff (-> new-path new-path->rawdiff first :raw)}
            old-path (assoc :old-path old-path)
            old-text (assoc :old-text old-text))))
-     (for [[old-path patches] (->> all-patches
+     (for [[old-path patches] (->> hunks
                                    (filter #(= "/dev/null" (:new-path %)))
                                    (group-by :old-path))]
        {:old-path old-path
         :old-text (string/join "\n" (conj (mapcat :old patches) ""))
         :new-path "/dev/null"
-        :new-text ""}))))
+        :new-text ""
+        :rawdiff (-> old-path old-path->rawdiff first :raw)}))))
 
 (defn pull-request-diff
   [owner repo num]
@@ -178,6 +185,12 @@
     (->changed-files
      diff
      #(slurp-blob-from-github (-> src :owner :login) (:name src) (-> info :head :sha) %))))
+
+(defn slurp-blob-from-local-git
+  [sha]
+  (let [result (sh/sh "git" "cat-file" "blob" sha)]
+    (when (= 0 (:exit result))
+      (:out result))))
 
 (defn local-diff
   [oldref newref]
@@ -191,3 +204,4 @@
 (defn merge-base
   [head base]
   (.trim (:out (sh/sh "git" "merge-base" head base))))
+

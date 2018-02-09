@@ -141,40 +141,55 @@
   [linkbase path lr root]
   (comp/root {} (diff-pane (str linkbase (md5sum path) lr) {} (:contents root))))
 
+(defn patch-heading
+  [{:keys [old-path old-text new-path new-text]}]
+  (comp/heading
+   (cond
+     (= old-path "/dev/null") (str new-path " (new file)")
+     (= new-path "/dev/null") (str old-path " (deleted)")
+     (not= old-path new-path) (str new-path " -> " new-path)
+     :else new-path)))
+
+(defn clojure-diff
+  [linkbase {:keys [old-path old-text new-path new-text] :as patch}]
+  (cond
+    (= old-path "/dev/null")
+    (one-file-diff linkbase new-path "R" (parse/parse new-text))
+
+    (= new-path "/dev/null")
+    (one-file-diff linkbase old-path "L"
+                   (-> old-text parse/parse delete-everything))
+
+    :else
+    (two-file-diff
+     linkbase
+     {:path old-path :root (parse/parse old-text)}
+     {:path new-path :root (parse/parse new-text)})))
+
+(defn raw-diff
+  [linkbase {:keys [rawdiff]}]
+  (->> (for [line (drop 4 rawdiff)]
+         (cond->> (.substring line 1)
+           (.startsWith line "+") (dom/span {:className "added"})
+           (.startsWith line "-") (dom/span {:className "deleted"})))
+       (interpose "\n")
+       (dom/pre {})))
+
 (defn diff-page
   [linkbase title changed-files]
-  (page
-   title
-   (comp/root
-    {}
-    (->> changed-files
-         (filter #(or (clojure-file? (:new-path %))
-                      (and (= "/dev/null" (:new-path %))
-                           (clojure-file? (:old-path %)))))
-         (mapcat
-          (fn [{:keys [old-path old-text new-path new-text]}]
-            [(comp/heading (cond
-                             (= old-path "/dev/null") (str new-path " (new file)")
-                             (= new-path "/dev/null") (str old-path " (deleted)")
-                             (not= old-path new-path) (str new-path " -> " new-path)
-                             :else new-path))
-             (binding [*out* *err*]
-               (println old-path " -> " new-path))
-             (cond
-               (= old-path "/dev/null")
-               (one-file-diff linkbase new-path "R" (parse/parse new-text))
-
-               (= new-path "/dev/null")
-               (one-file-diff linkbase old-path "L"
-                              (-> old-text parse/parse delete-everything))
-
-               :else
-               (two-file-diff
-                linkbase
-                {:path old-path :root (parse/parse old-text)}
-                {:path new-path :root (parse/parse new-text)}))
-             (comp/spacer)
-             (comp/spacer)]))))))
+  (->> changed-files
+       (mapcat
+        (fn [{:keys [old-path old-text new-path new-text] :as patch}]
+          [(patch-heading patch)
+           (if (or (clojure-file? new-path)
+                   (and (= "/dev/null" new-path)
+                        (clojure-file? old-path)))
+             (clojure-diff linkbase patch)
+             (raw-diff linkbase patch))
+           (comp/spacer)
+           (comp/spacer)]))
+       (comp/root {})
+       (page title)))
 
 (defn github-pr-diff-linkbase
   [owner repo num]
