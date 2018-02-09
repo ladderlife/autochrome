@@ -34,11 +34,14 @@
    [:.fixed {:font-family "monospace"
              :background-color "#111"}]))
 
+(def page-title "Autochrome - Structural diffs for Clojure source code")
+
 (defn readme-page
   [outfile root]
   (spit outfile
         (hp/html5
          [:head
+          [:title page-title]
           [:style styles/styles]
           [:style readme-styles]]
          [:body (dom/render-to-str root)])))
@@ -172,8 +175,7 @@
  (dom/div
   {}
   (dom/div {:className "filename-heading"}
-           (dom/div {:className "title"}
-                    "Autochrome - Structural diffs for Clojure source code"))
+           (dom/div {:className "title"} page-title))
   (dom/div
    {:className "textcontainer" :style {:margin "auto"}}
    (dom/div {:style {:margin-top "35px"}}
@@ -183,7 +185,8 @@
     {}
     (section
      "Abstract"
-     (p "Autochrome uses a full parse to highlight and structurally diff Clojure source code.  "
+     (p (dom/a {:href "https://github.com/ladderlife/autochrome"} "Autochrome")
+        " uses a full parse to highlight and structurally diff Clojure source code.  "
         "It aims to make the experience of reviewing Clojure code just as nice as writing it.  "
         "It takes the form of a command-line tool which writes diffs as HTML to stdout: ")
      (term "$ lein run <owner> <repo> <pull-request-id> "
