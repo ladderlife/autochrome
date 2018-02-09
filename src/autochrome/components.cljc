@@ -1,5 +1,6 @@
 (ns autochrome.components
   (:require [autochrome.common :as clj-common :refer [special-form? open->closed]]
+            [autochrome.xref :as xref]
             [om.dom :as dom :refer [span]]))
 
 (declare form)
@@ -10,46 +11,17 @@
      (let [[~props & ~children] args#]
        ~@body)))
 
-(def ^:const special->doc
-  {"set!" "https://clojure.org/reference/vars#set"
-   "catch" "https://clojure.org/reference/special_forms#try"
-   "finally" "https://clojure.org/reference/special_forms#try"})
-
-(defn clojure-core-link
-  [text]
-  (if (clj-common/special-form? text)
-    (or (special->doc text)
-        (str "https://clojure.org/reference/special_forms#" text))
-    (str "https://clojuredocs.org/clojure.core/" text)))
-
 (defn xref-clojure-core
   [text]
   (let [macro? (or (some-> text symbol resolve meta :macro)
                    (special-form? text))]
-    (dom/a {:href (clojure-core-link text)}
+    (dom/a {:href (xref/clojure-core-link text)}
            (span {:className (if macro? "macro clojure-core" "clojure-core")}
                  text))))
 
-(defn javadoc-link
-  ([text] (or (javadoc-link "java.lang" text)
-              (javadoc-link "java.util" text)
-              (javadoc-link "java.io" text)))
-  ([package text]
-   (when (Character/isUpperCase (.charAt text 0))
-     (try
-       (let [text (if (.endsWith text ".")
-                    (.substring text 0 (dec (count text)))
-                    text)
-             classname (str package "." text)]
-         (Class/forName classname)
-         (str "https://docs.oracle.com/javase/8/docs/api/"
-              (.replace classname "." "/")
-              ".html"))
-       (catch ClassNotFoundException e nil)))))
-
-(defn xref-java-lang
+(defn xref-java
   [text]
-  (let [link (javadoc-link text)]
+  (let [link (xref/javadoc-link text)]
     (cond->> (dom/span {:className "java-class"} text)
       link (dom/a {:href link}))))
 
@@ -62,7 +34,7 @@
       (nil? a) text
       ;; do something more interesting with locals?
       (= :local a) text
-      (= :java-class a) (xref-java-lang text)
+      (= :java-class a) (xref-java text)
       (= :core a) (xref-clojure-core text)
       (= :broken a) (span {:className "unparsed"} text)
       (= :shead a) (do (println 'shead!)

@@ -1,5 +1,5 @@
 (ns autochrome.annotation
-  (:require [autochrome.components :as comp]
+  (:require [autochrome.xref :as xref]
             [autochrome.tree :as tree]
             [autochrome.common :as clj-common]
             [autochrome.scope :as scope])
@@ -48,8 +48,7 @@
                     (get (:scope c) sym)
                     :local
 
-                    ;; a bit circular
-                    (and (nil? qual) (comp/javadoc-link (:text f)))
+                    (and (nil? qual) (xref/javadoc-link (:text f)))
                     :java-class
 
                     (and (symbol? qual) (= "clojure.core" (namespace qual)))
