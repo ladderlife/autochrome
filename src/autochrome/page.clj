@@ -14,9 +14,10 @@
 
 (defn clojure-file?
   [s]
-  (or (.endsWith s ".clj")
-      (.endsWith s ".cljc")
-      (.endsWith s ".cljs")))
+  (and s
+   (or (.endsWith s ".clj")
+       (.endsWith s ".cljc")
+       (.endsWith s ".cljs"))))
 
 (defn remove-react-stuff
   "no need for this until we have a client-side..."

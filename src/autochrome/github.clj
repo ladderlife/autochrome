@@ -65,7 +65,7 @@
                  (vswap! filechanges conj!
                          (assoc context :raw
                                 (subvec lines (:start context) line-index))))
-               (recur (assoc default-ctx :start line) (inc line-index)))
+               (recur (assoc default-ctx :start line-index) (inc line-index)))
 
            (.startsWith line "---")
            (recur (assoc context :old-path (line->path line)) (inc line-index))
@@ -77,7 +77,7 @@
            (do (when (:hunk context)
                  (vswap! hunks conj! context))
                (recur
-                (merge context (assoc default-ctx :hunk (parse-hunk-spec line)))
+                (merge context {:new [] :old [] :hunk (parse-hunk-spec line)})
                 (inc line-index)))
 
            (.startsWith line "+")
