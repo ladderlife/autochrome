@@ -1,0 +1,233 @@
+{
+  "difflog" : {
+    "$type" : "clojure_library",
+    "deps" : [
+      "//third_party/clojure:clojure",
+      "//third_party/omcljs:om",
+      ":annotation",
+      ":components",
+      ":diff",
+      ":page",
+      ":parse"
+    ],
+    "srcs" : {
+      "autochrome/difflog.clj" : "difflog.clj"
+    },
+    "visibility" : [
+      "PUBLIC"
+    ]
+  },
+  "github" : {
+    "$type" : "clojure_library",
+    "deps" : [
+      "//third_party/clj-http:clj-http",
+      "//third_party/clojure:clojure"
+    ],
+    "srcs" : {
+      "autochrome/github.clj" : "github.clj"
+    },
+    "visibility" : [
+      "PUBLIC"
+    ]
+  },
+  "diff" : {
+    "$type" : "clojure_library",
+    "deps" : [
+      ":tree"
+    ],
+    "srcs" : {
+      "autochrome/diff.clj" : "diff.clj"
+    },
+    "visibility" : [
+      "PUBLIC"
+    ]
+  },
+  "tree" : {
+    "$type" : "clojure_library",
+    "deps" : [
+      ":common"
+    ],
+    "srcs" : {
+      "autochrome/tree.clj" : "tree.clj"
+    },
+    "visibility" : [
+      "PUBLIC"
+    ]
+  },
+  "scope" : {
+    "$type" : "clojure_library",
+    "deps" : [
+      "//third_party/clojure:clojure",
+      ":common",
+      ":parse"
+    ],
+    "srcs" : {
+      "autochrome/scope.clj" : "scope.clj"
+    },
+    "visibility" : [
+      "PUBLIC"
+    ]
+  },
+  "styles" : {
+    "$type" : "clojure_library",
+    "deps" : [
+      "//third_party/garden:garden"
+    ],
+    "srcs" : {
+      "autochrome/styles.clj" : "styles.clj"
+    },
+    "visibility" : [
+      "PUBLIC"
+    ]
+  },
+  "common_cljs" : {
+    "$type" : "cljs_library",
+    "compile_deps" : [
+      ":common"
+    ],
+    "deps" : [ ],
+    "srcs" : {
+      "autochrome/common.cljc" : "common.cljc"
+    },
+    "visibility" : [
+      "PUBLIC"
+    ]
+  },
+  "annotation" : {
+    "$type" : "clojure_library",
+    "deps" : [
+      ":common",
+      ":scope",
+      ":tree",
+      ":xref"
+    ],
+    "srcs" : {
+      "autochrome/annotation.clj" : "annotation.clj"
+    },
+    "visibility" : [
+      "PUBLIC"
+    ]
+  },
+  "parse" : {
+    "$type" : "clojure_library",
+    "deps" : [
+      "//third_party/clojure:clojure",
+      ":common"
+    ],
+    "srcs" : {
+      "autochrome/parse.clj" : "parse.clj"
+    },
+    "visibility" : [
+      "PUBLIC"
+    ]
+  },
+  "components" : {
+    "$type" : "clojure_library",
+    "deps" : [
+      "//third_party/omcljs:om",
+      ":common",
+      ":xref"
+    ],
+    "srcs" : {
+      "autochrome/components.cljc" : "components.cljc"
+    },
+    "visibility" : [
+      "PUBLIC"
+    ]
+  },
+  "components_cljs" : {
+    "$type" : "cljs_library",
+    "compile_deps" : [
+      ":components"
+    ],
+    "deps" : [
+      "//third_party/omcljs:om",
+      ":common_cljs"
+    ],
+    "srcs" : {
+      "autochrome/components.cljc" : "components.cljc"
+    },
+    "visibility" : [
+      "PUBLIC"
+    ]
+  },
+  "page" : {
+    "$type" : "clojure_library",
+    "deps" : [
+      "//third_party/clojure:clojure",
+      "//third_party/hiccup:hiccup",
+      "//third_party/omcljs:om",
+      ":annotation",
+      ":common",
+      ":components",
+      ":diff",
+      ":github",
+      ":parse",
+      ":styles"
+    ],
+    "srcs" : {
+      "autochrome/page.clj" : "page.clj"
+    },
+    "visibility" : [
+      "PUBLIC"
+    ]
+  },
+  "readme" : {
+    "$type" : "clojure_library",
+    "deps" : [
+      "//third_party/garden:garden",
+      "//third_party/hiccup:hiccup",
+      "//third_party/omcljs:om",
+      ":annotation",
+      ":components",
+      ":diff",
+      ":difflog",
+      ":page",
+      ":parse",
+      ":styles"
+    ],
+    "srcs" : {
+      "autochrome/readme.clj" : "readme.clj"
+    },
+    "visibility" : [
+      "PUBLIC"
+    ]
+  },
+  "core" : {
+    "$type" : "clojure_library",
+    "deps" : [
+      "//third_party/clj-http:clj-http",
+      "//third_party/clojure:tools.cli",
+      ":page"
+    ],
+    "needs_compile" : true,
+    "srcs" : {
+      "autochrome/core.clj" : "core.clj"
+    },
+    "visibility" : [
+      "PUBLIC"
+    ]
+  },
+  "common" : {
+    "$type" : "clojure_library",
+    "deps" : [ ],
+    "srcs" : {
+      "autochrome/common.cljc" : "common.cljc"
+    },
+    "visibility" : [
+      "PUBLIC"
+    ]
+  },
+  "xref" : {
+    "$type" : "clojure_library",
+    "deps" : [
+      ":common"
+    ],
+    "srcs" : {
+      "autochrome/xref.clj" : "xref.clj"
+    },
+    "visibility" : [
+      "PUBLIC"
+    ]
+  }
+}
