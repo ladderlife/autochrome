@@ -1,7 +1,2 @@
 load_manually_added_deps()
 
-java_binary(
-    name='autochrome',
-    main_class='autochrome.core',
-    deps=[':core'],
-)
