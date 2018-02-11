@@ -16,7 +16,7 @@
     {:font-family "sans-serif"
      :text-align "left"
      :font-size "18px"}]
-   [:.caption {:width "56em"}]
+   [:.caption {:width "57em"}]
    [:p {:text-indent "2em"}]
    [:.diffpane {:width "unset"}]
    [:.textcontainer {:width "50%"
@@ -45,7 +45,7 @@
           [:title page-title]
           [:style styles/styles]
           [:style readme-styles]]
-         [:body (dom/render-to-str root)])))
+         [:body (page/remove-react-stuff (dom/render-to-str root))])))
 
 (defn inset
   [thing]
@@ -254,7 +254,7 @@
                                 (dom/li {} "When both cursors are nil, it means we have reached the end of both lists, and we need to "
                                         "pop the next location in the parent sequences off the stack."))
                         (p "This is the basic version of adjacency that I started with.  However, when implemented this way, "
-                           "the algorithm cannot match subtrees at different levels of nesting, since the cursors always move"
+                           "the algorithm cannot match subtrees at different levels of nesting, since the cursors always move "
                            "up or down together.  "
                            "To handle changes in nesting, the cursors need to be allowed to move up and down independently, "
                            "like they are allowed to do within lists.  This means that instead of one stack of pairs of pointers, "

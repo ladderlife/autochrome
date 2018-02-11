@@ -18,13 +18,20 @@
       (.endsWith s ".cljc")
       (.endsWith s ".cljs")))
 
+(defn remove-react-stuff
+  "no need for this until we have a client-side..."
+  [html]
+  (-> html
+      (.replaceAll "<!--.*?-->" "")
+      (.replaceAll " data-reactid=\"[0-9]+\"" "")))
+
 (defn page
   [title root]
   (hp/html5
    [:head
     [:style styles/styles]
     [:title (str title)]]
-   [:body (dom/render-to-str root)]))
+   [:body (remove-react-stuff (dom/render-to-str root))]))
 
 (defn unnest
   [form]
