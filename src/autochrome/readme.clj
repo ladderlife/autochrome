@@ -16,6 +16,7 @@
     {:font-family "sans-serif"
      :text-align "left"
      :font-size "18px"}]
+   [:.caption {:width "56em"}]
    [:p {:text-indent "2em"}]
    [:.diffpane {:width "unset"}]
    [:.textcontainer {:width "50%"
@@ -103,7 +104,7 @@
 
 (defn caption
   [& args]
-  (dom/span {:className "caption"} args))
+  (dom/div {:className "caption"} args))
 
 (defn section
   [title & children]
@@ -222,7 +223,7 @@
         "In order to apply A* to the problem of tree diffing, you need to extend the concepts "
         "of location, cost, distance, and adjacency to tree diffs.  Location is clearly needed to know where you are, "
         "but in addition they need to be comparable, so you know not to bother when you already have a better "
-        "path to the same place."
+        "path to the same place.  "
         "Cost is what makes some paths preferred over others.  For pathfinding on a road network, this would be "
         "the total distance traveled along the roads used.  By 'distance' I really mean the A* heuristic, " 
         "which in the case of roads might be the straight-line distance to the destination.  "
@@ -267,8 +268,8 @@
                         (p "Since there are quite a lot of branch nodes, this creates a ton of extra states for the algorithm to explore.  "
                            "So although it seems like the steps which move both cursors up/down would obsolete, since they can "
                            "be replicated with two single-cursor movements, they are needed so that performance is not terrible "
-                           "on mostly identical subtrees (ie the common case).  It is also helpful to make that state cost "
-                           "less than the unmatched case, so that we only try it after matched movement fails.  "
+                           "on mostly identical subtrees (ie the common case).  It is also helpful to make single-cursor movement cost "
+                           "more than two-cursor movement, so that we only try a single-cursor move after matched movement fails.  "
                            "The extra cost basically represents that we are adding or removing a set of parens, although they are not annotated. ")))))
     (let [a (parse/parse-one (first example1))
           b (parse/parse-one (second example1))
@@ -315,12 +316,11 @@
        (loginset (nth logs 20))
        (caption "It turns out that since deleting " (fixed "(println \"hello\")") " has a relatively high cost, "
                 "  we go through a bunch of other states before we finally pop #20.  "
-                (dom/br {})
                 "But once we do, we can match the identical subtrees and get to here:")
        (loginset (nth logs 85))
        (caption "Here we are at the end of the source list (the defn body), "
                 "so no cursor is drawn and it says (nil S) in the header.  " 
-                "From here we delete " (fixed "(assoc :twice (+ x x))") ":")
+                "From here we add " (fixed "(assoc :twice (+ x x))") ":")
        (loginset (nth logs 86))
        (caption "Now we have the completed diff, and we have (nil S) and (nil T), "
                 "so all we need to do is pop out of the defn body and we're done!")
