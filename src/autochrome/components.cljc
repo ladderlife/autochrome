@@ -90,14 +90,10 @@
           :reader-conditional-splicing
           (span {} "#?@(" (mapv form (:wscontents the-form)) ")")
 
-          (span {:className "unparsed"} (pr-str the-form)))
+          :meta
+          (span {:className "meta"} "^" (mapv form (:wscontents the-form)))
 
-        rendered (if-let [m (:meta the-form)]
-                   (dom/span {} "^"
-                             (form m)
-                             (:text (:meta-ws the-form))
-                             (form (dissoc the-form :meta)))
-                   rendered)]
+          (span {:className "unparsed"} (pr-str the-form)))]
     (cond->> rendered
       form-annotation? (dom/span {:className (str (name annotation))}))))
 

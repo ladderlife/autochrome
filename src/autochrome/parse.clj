@@ -206,12 +206,7 @@
                                      :text (:text nt)}
                     (next ts)))))))
 
-        \^ (let [{:keys [val rest]} (-parse-one (next ts))
-                 sep-space (first rest)
-                 {nval :val nrest :rest} (-parse-one (next rest))]
-             {:val (assoc nval :meta val :meta-ws sep-space)
-              :rest nrest})
-
+        \^ (parse-decoration {:type :meta} (next ts))
         \@ (parse-decoration {:type :deref} (next ts))
         \~ (if (= \@ (second ts))
              (parse-decoration {:type :unquote-splicing} (nnext ts))

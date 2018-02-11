@@ -22,7 +22,8 @@
   (or (= type :deref)
       (= type :syntax-quote)
       (= type :unquote)
-      (= type :unquote-splicing)))
+      (= type :unquote-splicing)
+      (= type :meta)))
 
 (defn ->decorator
   [{:keys [type] :as arg}]

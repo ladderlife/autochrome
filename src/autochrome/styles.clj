@@ -1,5 +1,6 @@
 (ns autochrome.styles
-  (:require [garden.core :refer [css]]))
+  (:require [garden.core :refer [css]]
+            [garden.selectors :as gs]))
 
 (def code-fonts
   "some nice programming fonts, ordered by how much I like them"
@@ -63,6 +64,7 @@
    #_[:.keyword {:color "#c3ce5c"}]
    [:.keyword {:color "#70c0b1"}]
    #_[:.java-class {:color "#a3685a"}]
+   [(gs/> :.meta :.keyword) {:color "#ea731c"}]
    [:.java-class {:color "#de9f25"}]
    [:.punctuation {:color "#a6a6a0"}]
    [:.highlight {:background-color "#5d007a"}]
