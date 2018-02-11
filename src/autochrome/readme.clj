@@ -125,12 +125,6 @@
        :less (dec x)}
       (assoc :twice (+ x x))))"])
 
-(comment
-  (difflog/write-difflog
-   "/tmp/"
-   "difflog2"
-   (first example1) (second example1)))
-
 (def highlight-example
   "(let [keyword :hello/world
       name (name keyword)
@@ -171,7 +165,7 @@
   (dom/span {:className "fixed"} text))
 
 (readme-page
- "/tmp/readme.html"
+ "readme.html"
  (dom/div
   {}
   (dom/div {:className "filename-heading"}
