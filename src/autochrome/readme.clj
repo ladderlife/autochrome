@@ -1,14 +1,14 @@
 (ns autochrome.readme
   (:refer-clojure :exclude [comment])
-  (:require [garden.core :refer [css]]
-            [hiccup.page :as hp]
-            [autochrome.parse :as parse]
+  (:require [autochrome.annotation :as annotation]
+            [autochrome.components :as comp]
             [autochrome.diff :as diff]
             [autochrome.difflog :as difflog]
-            [autochrome.styles :as styles]
             [autochrome.page :as page]
-            [autochrome.annotation :as annotation]
-            [autochrome.components :as comp]
+            [autochrome.parse :as parse]
+            [autochrome.styles :as styles]
+            [garden.core :refer [css]]
+            [hiccup.page :as hp]
             [om.dom :as dom]))
 (def readme-styles
   (css
@@ -65,7 +65,7 @@
   [log]
   (inset log)
   (dom/div
-   {:style {:margin-bottom "20px" }
+   {:style {:margin-bottom "20px"}
     :className "insetcontainer"}
    (dom/div
     {:style [["min-width" "fit-content"]
@@ -73,7 +73,6 @@
      :className "inset"}
     log)
    (dom/div {:style {:width "100%"}})))
-
 
 (defn term
   [& children]
@@ -88,15 +87,15 @@
 (defn code-inset
   [text]
   (let [parsed (parse/parse-one text)]
-   (inset
-    (comp/code
-     (merge
-      parsed
-      {:linkbase "more hacks"
-       :things (-> parsed
-                   (annotation/attach
-                    (annotation/syntax-highlighting parsed))
-                   page/unnest)})))))
+    (inset
+     (comp/code
+      (merge
+       parsed
+       {:linkbase "more hacks"
+        :things (-> parsed
+                    (annotation/attach
+                     (annotation/syntax-highlighting parsed))
+                    page/unnest)})))))
 
 (defn p
   [& args]
@@ -175,7 +174,7 @@
    {:className "textcontainer" :style {:margin "auto"}}
    (dom/div {:style {:margin-top "35px"}}
             (inset-center (diff2 (first example1) (second example1))))
-     
+
    (dom/p
     {}
     (section
@@ -186,7 +185,7 @@
         "It takes the form of a command-line tool which writes diffs as HTML to stdout: ")
      (term "$ lein run <owner> <repo> <pull-request-id> "
            (comment " # generate diff for a GitHub pull request")
-           
+
            "\n$ lein run <old-tree> <new-tree>"
            (comment "             # like git diff, run it from your repo directory")
 
@@ -225,7 +224,7 @@
         "but in addition they need to be comparable, so you know not to bother when you already have a better "
         "path to the same place.  "
         "Cost is what makes some paths preferred over others.  For pathfinding on a road network, this would be "
-        "the total distance traveled along the roads used.  By 'distance' I really mean the A* heuristic, " 
+        "the total distance traveled along the roads used.  By 'distance' I really mean the A* heuristic, "
         "which in the case of roads might be the straight-line distance to the destination.  "
         "Adjacency is what states are reachable from a particular state.  For roads you might say that intersections are "
         "the nodes and adjacency means there is a road connecting them.  "
@@ -319,7 +318,7 @@
                 "But once we do, we can match the identical subtrees and get to here:")
        (loginset (nth logs 85))
        (caption "Here we are at the end of the source list (the defn body), "
-                "so no cursor is drawn and it says (nil S) in the header.  " 
+                "so no cursor is drawn and it says (nil S) in the header.  "
                 "From here we add " (fixed "(assoc :twice (+ x x))") ":")
        (loginset (nth logs 86))
        (caption "Now we have the completed diff, and we have (nil S) and (nil T), "

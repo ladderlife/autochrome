@@ -108,21 +108,21 @@
 (defcomponent code
   [{:keys [lines start-line linkbase things annotation id] :as the-form} children]
   (dom/div
-    {:className "code-card"
-     :id id}
-    (dom/div {:className "code-card-heading"}
-      (first children)
-      (dom/div {:className "code-card-heading-extra"} (rest children)))
-    (dom/div {:className "container"}
-      (dom/pre {:className "gutter"}
-        (dom/code {:className "punctuation"} (line-numbers the-form)))
-      (dom/div {:style {:width "1px"}})
-      (dom/pre
-        {:className
-         (cond-> "source"
-           annotation (str " " (name annotation)))}
-        (for [th things]
-          (if (map? th) (form th) th))))))
+   {:className "code-card"
+    :id id}
+   (dom/div {:className "code-card-heading"}
+            (first children)
+            (dom/div {:className "code-card-heading-extra"} (rest children)))
+   (dom/div {:className "container"}
+            (dom/pre {:className "gutter"}
+                     (dom/code {:className "punctuation"} (line-numbers the-form)))
+            (dom/div {:style {:width "1px"}})
+            (dom/pre
+             {:className
+              (cond-> "source"
+                annotation (str " " (name annotation)))}
+             (for [th things]
+               (if (map? th) (form th) th))))))
 
 (defcomponent top-level-comment
   [{:keys [lines start-line text] :as the-form} _]

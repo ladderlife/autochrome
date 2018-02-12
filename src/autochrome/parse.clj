@@ -1,8 +1,7 @@
 (ns autochrome.parse
-  (:require [clojure.java.io :as io]
-            [clojure.string :as string]
-            [clojure.test :refer [deftest is are testing]]
-            [autochrome.common :refer [open->closed closed->open]]))
+  (:require [autochrome.common :refer [open->closed closed->open]]
+            [clojure.java.io :as io]
+            [clojure.string :as string]))
 
 (defn ns->source-string
   [ns]
@@ -204,7 +203,7 @@
 
                   (parse-decoration {:type :data-reader
                                      :text (:text nt)}
-                    (next ts)))))))
+                                    (next ts)))))))
 
         \^ (parse-decoration {:type :meta} (next ts))
         \@ (parse-decoration {:type :deref} (next ts))
@@ -319,16 +318,16 @@
 
       :coll
       (str (:delim t)
-        (let [contents (:contents t)]
-          (->>
-            contents
-            (map-indexed (fn [i elem]
-                           (cond
-                             (contains? #{\` \~ \@} elem) (render elem)
-                             (= i (dec (count contents))) (render elem)
-                             :else (str (render elem) " "))))
-            (apply str)))
-        (open->closed (:delim t)))
+           (let [contents (:contents t)]
+             (->>
+              contents
+              (map-indexed (fn [i elem]
+                             (cond
+                               (contains? #{\` \~ \@} elem) (render elem)
+                               (= i (dec (count contents))) (render elem)
+                               :else (str (render elem) " "))))
+              (apply str)))
+           (open->closed (:delim t)))
 
       :lambda  (str "#" (render (:text t)))
       :root (apply str (mapv render (:contents t)))
@@ -336,4 +335,3 @@
       (case t
         (\` \~ \@) t
         (pr-str t)))))
-

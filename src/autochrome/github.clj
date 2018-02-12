@@ -1,8 +1,7 @@
 (ns autochrome.github
   (:require [clj-http.client :as http]
             [clojure.java.shell :as sh]
-            [clojure.string :as string]
-            [clojure.pprint :as pprint]))
+            [clojure.string :as string]))
 
 (defn pr-request-params
   [owner repo num]
@@ -51,54 +50,53 @@
     (loop [context default-ctx
            line-index 0]
       (let [line (get lines line-index)]
-       (if-not line
-         {:hunks (persistent! (vswap! hunks conj! context))
-          :filechanges
-          (persistent!
-           (vswap! filechanges conj!
-                   (assoc context :raw
-                          (subvec lines (:start context) line-index))))}
-         (cond
-           (.startsWith line "diff --git")
-           (do (when (:hunk context)
-                 (vswap! hunks conj! context)
-                 (vswap! filechanges conj!
-                         (assoc context :raw
-                                (subvec lines (:start context) line-index))))
-               (recur (assoc default-ctx :start line-index) (inc line-index)))
+        (if-not line
+          {:hunks (persistent! (vswap! hunks conj! context))
+           :filechanges
+           (persistent!
+            (vswap! filechanges conj!
+                    (assoc context :raw
+                           (subvec lines (:start context) line-index))))}
+          (cond
+            (.startsWith line "diff --git")
+            (do (when (:hunk context)
+                  (vswap! hunks conj! context)
+                  (vswap! filechanges conj!
+                          (assoc context :raw
+                                 (subvec lines (:start context) line-index))))
+                (recur (assoc default-ctx :start line-index) (inc line-index)))
 
-           (.startsWith line "---")
-           (recur (assoc context :old-path (line->path line)) (inc line-index))
+            (.startsWith line "---")
+            (recur (assoc context :old-path (line->path line)) (inc line-index))
 
-           (.startsWith line "+++")
-           (recur (assoc context :new-path (line->path line)) (inc line-index))
+            (.startsWith line "+++")
+            (recur (assoc context :new-path (line->path line)) (inc line-index))
 
-           (.startsWith line "@@")
-           (do (when (:hunk context)
-                 (vswap! hunks conj! context))
-               (recur
-                (merge context {:new [] :old [] :hunk (parse-hunk-spec line)})
-                (inc line-index)))
+            (.startsWith line "@@")
+            (do (when (:hunk context)
+                  (vswap! hunks conj! context))
+                (recur
+                 (merge context {:new [] :old [] :hunk (parse-hunk-spec line)})
+                 (inc line-index)))
 
-           (.startsWith line "+")
-           (recur (put-line context :new line) (inc line-index))
+            (.startsWith line "+")
+            (recur (put-line context :new line) (inc line-index))
 
-           (.startsWith line "-")
-           (recur (put-line context :old line) (inc line-index))
+            (.startsWith line "-")
+            (recur (put-line context :old line) (inc line-index))
 
-           :else
-           (if-let [{:keys [old-lines new-lines]} (:hunk context)]
-             (let [nnew (count (:new context))
-                   nold (count (:old context))]
-               (if (and (= nnew new-lines) (= nold old-lines))
-                 (do (vswap! hunks conj! context)
-                     (recur (dissoc context :hunk) (inc line-index)))
-                 (recur (-> context
-                            (put-line :new line)
-                            (put-line :old line))
-                        (inc line-index))))
-             (recur context (inc line-index)))))))))
-
+            :else
+            (if-let [{:keys [old-lines new-lines]} (:hunk context)]
+              (let [nnew (count (:new context))
+                    nold (count (:old context))]
+                (if (and (= nnew new-lines) (= nold old-lines))
+                  (do (vswap! hunks conj! context)
+                      (recur (dissoc context :hunk) (inc line-index)))
+                  (recur (-> context
+                             (put-line :new line)
+                             (put-line :old line))
+                         (inc line-index))))
+              (recur context (inc line-index)))))))))
 
 ;; need to apply patches in reverse because I don't know how to get the
 ;; old text to diff from using the github api
@@ -129,10 +127,10 @@
     (try
       (:body
        (http/request
-         {:method :get
-          :url url
-          :content-type :json
-          :accept "application/vnd.github.VERSION.raw"}))
+        {:method :get
+         :url url
+         :content-type :json
+         :accept "application/vnd.github.VERSION.raw"}))
       (catch Exception e
         (throw (Exception. (str "slurping " (pr-str url)) e))))))
 
@@ -204,4 +202,3 @@
 (defn merge-base
   [head base]
   (.trim (:out (sh/sh "git" "merge-base" head base))))
-

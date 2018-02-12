@@ -1,13 +1,13 @@
 (ns autochrome.page
-  (:require [clojure.string :as string]
-            [hiccup.page :as hp]
-            [autochrome.annotation :as annotation]
+  (:require [autochrome.annotation :as annotation]
+            [autochrome.common :as clj-common]
             [autochrome.components :as comp]
             [autochrome.diff :as diff]
             [autochrome.github :as github]
-            [autochrome.styles :as styles]
-            [autochrome.common :as clj-common]
             [autochrome.parse :as parse]
+            [autochrome.styles :as styles]
+            [clojure.string :as string]
+            [hiccup.page :as hp]
             [om.dom :as dom])
   (:import [java.security MessageDigest]
            [javax.xml.bind DatatypeConverter]))
@@ -15,9 +15,9 @@
 (defn clojure-file?
   [s]
   (and s
-   (or (.endsWith s ".clj")
-       (.endsWith s ".cljc")
-       (.endsWith s ".cljs"))))
+       (or (.endsWith s ".clj")
+           (.endsWith s ".cljc")
+           (.endsWith s ".cljs"))))
 
 (defn remove-react-stuff
   "no need for this until we have a client-side..."
@@ -139,7 +139,6 @@
              (some->> a list (diff-pane (str linkbase (md5sum (:path old)) "L") ann))
              (some->> b list (diff-pane (str linkbase (md5sum (:path new)) "R") ann))))))))
 
-
 (defn delete-everything
   [root]
   (assoc root :contents (map #(assoc % :annotation :deleted) (:contents root))))
@@ -217,7 +216,3 @@
    "local"
    (str a "..." b)
    (github/local-diff a b)))
-
-
-
-
