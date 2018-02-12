@@ -1,10 +1,10 @@
 (ns autochrome.difflog
-  (:require [clojure.string :as string]
+  (:require [autochrome.annotation :as ann]
             [autochrome.components :as comp]
-            [autochrome.annotation :as ann]
             [autochrome.diff :as diff]
             [autochrome.page :as page]
             [autochrome.parse :as parse]
+            [clojure.string :as string]
             [om.dom :as dom]))
 
 (defn diff2
@@ -17,8 +17,6 @@
    (some->> b list (page/diff-pane "worst hack"
                                    (doto (ann/syntax-highlighting a)
                                      (.putAll ann))))))
-
-
 
 (defn diff-log
   [aroot broot]
@@ -65,14 +63,14 @@
         b (parse/parse-one bstr)]
     #_(diff/dforms a b)
     (spit (str outdir "/" title ".html")
-      (page/page
-        title
-        (comp/root {}
-          (diff-log a b))))))
+          (page/page
+           title
+           (comp/root {}
+                      (diff-log a b))))))
 
 (comment
   (write-difflog
-    "/tmp/a"
-    "difflog2"
-    "['[:a :b :c :d :e]]"
-    "[(count '[:a :b :c :d :e])]"))
+   "/tmp/a"
+   "difflog2"
+   "['[:a :b :c :d :e]]"
+   "[(count '[:a :b :c :d :e])]"))

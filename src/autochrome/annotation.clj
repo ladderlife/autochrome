@@ -1,8 +1,8 @@
 (ns autochrome.annotation
-  (:require [autochrome.xref :as xref]
+  (:require [autochrome.common :as clj-common]
+            [autochrome.scope :as scope]
             [autochrome.tree :as tree]
-            [autochrome.common :as clj-common]
-            [autochrome.scope :as scope])
+            [autochrome.xref :as xref])
   (:import [java.util IdentityHashMap]))
 
 (defn attach

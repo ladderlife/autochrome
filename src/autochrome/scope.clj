@@ -1,7 +1,7 @@
 (ns autochrome.scope
-  (:require [clojure.test :refer [deftest is are]]
-            [autochrome.common :as clj-common]
-            [autochrome.parse :as parse])
+  (:require [autochrome.common :as clj-common]
+            [autochrome.parse :as parse]
+            [clojure.test :refer [deftest is are]])
   (:import [java.io Writer]))
 
 ;; crude Writer monad (can't be nested artibrarily/lexically)
@@ -252,8 +252,8 @@
     (clojure.core/defn
       clojure.core/defn-)    walk-defn-form
     (clojure.core/defrecord
-        clojure.core/deftype
-        potemkin/defprotocol+)  walk-defrecord-form
+     clojure.core/deftype
+     potemkin/defprotocol+)  walk-defrecord-form
     clojure.core/defmacro    walk-defmacro-form
     clojure.core/defprotocol walk-defprotocol-form
     clojure.core/defmethod   walk-defmethod-form
@@ -287,7 +287,7 @@
       clojure.core/binding (walk-literal-binding-form (first params) (rest params) func ctx)
       clojure.core/reify   (walk-defprotocol-form form func ctx)
       ;; TODO proxy
-      
+
       (if-let [tlw (top-level-walker-fn dispatch-form)]
         (tlw form func ctx)
         (walk-body params func ctx)))))
@@ -343,4 +343,3 @@
   (when-let [sym (form->real-symbol context form)]
     (when (not (contains? (:scope context) sym))
       sym)))
-

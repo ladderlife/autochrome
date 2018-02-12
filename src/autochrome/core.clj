@@ -1,6 +1,5 @@
 (ns autochrome.core
   (:require [autochrome.page :as page]
-            [clj-http.client :as http]
             [clojure.tools.cli :as cli])
   (:import [java.awt Desktop]
            [java.io File])
@@ -27,5 +26,3 @@
                   (spit the-page))))
       :else (println the-page)))
   (shutdown-agents))
-
-

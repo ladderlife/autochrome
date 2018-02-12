@@ -196,7 +196,6 @@
   "core" : {
     "$type" : "clojure_library",
     "deps" : [
-      "//third_party/clj-http:clj-http",
       "//third_party/clojure:tools.cli",
       ":page"
     ],
