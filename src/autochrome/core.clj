@@ -1,7 +1,8 @@
 (ns autochrome.core
   (:require [autochrome.github :as github]
             [autochrome.page :as page]
-            [clojure.tools.cli :as cli])
+            [clojure.tools.cli :as cli]
+            [clojure.java.io :as io])
   (:import [java.awt Desktop]
            [java.io File])
   (:gen-class))
@@ -18,19 +19,17 @@
         the-page (binding [github/*auth-token* (:token options)]
                    (cond
                      c (page/pull-request-diff a b (Integer/parseInt c))
-                     b (page/local-diff a b)))]
-    (cond
-      (nil? the-page)
+                     b (page/local-diff a b)))
+        output-file (if (:output options)
+                      (io/file (:output options))
+                      (File/createTempFile "diff" ".html"))]
+    (if-not the-page
       (println "expected 2 or 3 args [treeA treeB] or [owner repo pr-id] ")
-
-      (and (:open options) (Desktop/isDesktopSupported))
+      (spit output-file the-page))
+    (if (and (:open options) (Desktop/isDesktopSupported))
       (.browse (Desktop/getDesktop)
-               (.toURI
-                (doto (File/createTempFile "diff" ".html")
-                  (spit the-page))))
-
-      (:output options)
-      (spit (:output options) the-page)
-
-      :else (println the-page)))
+        (.toURI output-file))
+      (when-not (:output options)
+        (io/copy output-file *out*))))
   (shutdown-agents))
+

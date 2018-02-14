@@ -10,28 +10,37 @@
             [garden.core :refer [css]]
             [hiccup.page :as hp]
             [om.dom :as dom]))
+
 (def readme-styles
   (css
-   [:p :li :.caption
+   [:body {:color "white"}]
+   [:p :.caption
     {:font-family "sans-serif"
      :text-align "left"
      :font-size "18px"}]
-   [:.caption {:width "57em"}]
+   [:.caption {:font-size "14px"}]
    [:p {:text-indent "2em"}]
    [:.diffpane {:width "unset"}]
+   [:.text {:font-family "sans-serif"}]
    [:.textcontainer {:width "50%"
-                     :color "white"}]
+                     :font-size "18px"}]
    [:.title {:font-size "32px"}]
    [:.sectiontitle {:font-size "24px"
                     :text-decoration "underline"}]
-   [:.insetcontainer {:display "flex"}]
+   [:.insetcontainer {:display "flex"
+                      :justify-content "space-between"}]
    [:.insetcenter {:display "flex"
                    :justify-content "center"}]
-   [:.inset {:border "2px solid"
+   [:.logside {:width "50%"}]
+   [:.inset {:border       "2px solid"
              :border-color "#969896"
-             :padding "10px"
-             :display "flex"
-             :margin "10px auto"}]
+             :padding      "10px"
+             :display      "flex"
+             ;:margin "10px auto"
+             }]
+   [:.examplesection {:font-size "16px"
+                      :width "58%"
+                      :margin "auto"}]
    [:.fixed {:font-family "monospace"
              :background-color "#111"}]))
 
@@ -58,21 +67,19 @@
   (dom/div {:className "insetcenter"}
            (dom/div {:className "inset"} thing)))
 
-(dom/render-to-str (dom/div {:style [["min-width" "fit-content"] ["min-width" "-moz-fit-content"]]}))
-;; => "<div style=\"min-width:fit-content asdf;\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"-1031201701\"></div>"
-
 (defn loginset
-  [log]
+  [log & more]
   (inset log)
   (dom/div
-   {:style {:margin-bottom "20px"}
-    :className "insetcontainer"}
-   (dom/div
-    {:style [["min-width" "fit-content"]
-             ["min-width" "-moz-fit-content"]]
-     :className "inset"}
-    log)
-   (dom/div {:style {:width "100%"}})))
+    {:style {:margin-bottom "40px"}
+     :className "insetcontainer"}
+    (dom/div
+      {:style [["min-width" "fit-content"]
+               ["min-width" "-moz-fit-content"]]
+       :className "inset"}
+      log)
+    (dom/div {})
+    (dom/div {:className "logside"} more)))
 
 (defn term
   [& children]
@@ -80,9 +87,18 @@
 
 (defn diff2
   [atext btext]
-  (let [aroot (parse/parse-one atext)
-        broot (parse/parse-one btext)]
+  (let [aroot (parse/parse atext)
+        broot (parse/parse btext)]
     (difflog/diff2 (diff/diff-forms aroot broot) aroot broot)))
+
+(defn side-caption
+  [& body]
+  (dom/div {:style {:display "flex"
+                    :height "100%"
+                    :flex-direction "column"
+                    :justify-content "center"}}
+    (dom/div {})
+    (dom/div {:className "caption"} body)))
 
 (defn code-inset
   [text]
@@ -105,12 +121,16 @@
   [& args]
   (dom/div {:className "caption"} args))
 
-(defn section
-  [title & children]
+(defn section*
+  [props title & children]
   (dom/div
-   {}
+   props
    (dom/div {:className "sectiontitle"} title)
    children))
+
+(defn section
+  [title & children]
+  (apply section* {} title children))
 
 (def example1
   ["(defn example
@@ -174,40 +194,46 @@
    {:className "textcontainer" :style {:margin "auto"}}
    (dom/div {:style {:margin-top "35px"}}
             (inset-center (diff2 (first example1) (second example1))))
-
    (dom/p
     {}
     (section
      "Abstract"
-     (p (dom/a {:href "https://github.com/ladderlife/autochrome"} "Autochrome")
+     (p (dom/a {:href "https://github.com/ladderlife/autochrome"} "Autochrome (repo here)")
         " uses a full parse to highlight and structurally diff Clojure source code.  "
         "It aims to make the experience of reviewing Clojure code just as nice as writing it.  "
-        "It takes the form of a command-line tool which writes diffs as HTML to stdout: ")
-     (term "$ lein run <owner> <repo> <pull-request-id> "
-           (comment " # generate diff for a GitHub pull request")
+        "It takes the form of a command-line tool which generates diffs as static HTML: ")
+     (term
+       "$ lein run " (dom/i {} "owner") " " (dom/i {} "repo") " " (dom/i {} "num") " -o diff.html"
+       (comment "        # write a diff for a GitHub pull request")
 
-           "\n$ lein run <old-tree> <new-tree>"
-           (comment "             # like git diff, run it from your repo directory")
+       "\n$ lein run --token user:123abc "(dom/i {} "owner") " " (dom/i {} "repo") " " (dom/i {} "num")
+       (comment " # use supplied auth token for github api")
 
-           "\n$ lein run -o ..."
-           (comment "                            # try to open the diff in a browser"))
+       "\n$ lein run ... --open"
+       (comment "                         # try to open the diff in a browser")
+
+       "\n$ lein uberjar"
+       (comment "                          # create a standalone jar in target/ directory")
+
+       "\n$ java -jar autochrome.jar " (dom/i {} "old-tree") " " (dom/i {} "new-tree")
+       (comment "  # run like git diff from your repo"))
      (p "If generated from GitHub, the line numbers in Clojure diffs link back to the PR.  "
         "Bold symbols link to documentation."))
     (section
      "Features"
-     (p (dom/ul {}
-                (dom/li {} "Scope-aware highlighting:"
+     (p (dom/ul {:className "text"}
+                (dom/li {:style {:margin-bottom "30px"}} "Scope-aware highlighting (no regular expressions):"
                         (code-inset highlight-example))
-                (dom/li {} "Structural diff which can cope with wrapping/stripping parens:"
+                (dom/li {:style {:margin-bottom "30px"}} "Structural diff which can cope with wrapping/stripping parens:"
                         (inset (diff2 (first wrap-example) (second wrap-example))))
-                (dom/li {} "Naturally, whitespace is ignored completely: (h/t "
+                (dom/li {:style {:margin-bottom "30px"}} "Naturally, whitespace is ignored completely: (h/t "
                         (dom/a {:href "http://blog.klipse.tech/lambda/2016/08/07/pure-y-combinator-clojure.html"}
                                "@viebel") ")"
                         (inset (diff2 (first ws-example) (second ws-example)))))))
     (section
      "Misfeatures"
-     (p (dom/ul {}
-                (dom/li {} "Symbols can only have one annotation.  ")
+     (p (dom/ul {:className "text"}
+                (dom/li {} "Symbols can only have one annotation.  (diff color overwrites highlight)")
                 (dom/li {} "Terrible for viewing non-clojure diffs.  ")
                 (dom/li {} "Difficult to port to ClojureScript.  ")
                 (dom/li {} "Uses its own custom clojure parser.")
@@ -229,7 +255,7 @@
         "Adjacency is what states are reachable from a particular state.  For roads you might say that intersections are "
         "the nodes and adjacency means there is a road connecting them.  "
         "In autochrome:"
-        (dom/ul {}
+        (dom/ul {:className "text"}
                 (dom/li {} "Location is a pair of pointers into the source and target lists, "
                         "plus the stack of previous locations.  Intuitively, the pointers represent a pair of "
                         "'cursors' over the tree structure.  Without the stack of previous locations, "
@@ -269,58 +295,90 @@
                            "be replicated with two single-cursor movements, they are needed so that performance is not terrible "
                            "on mostly identical subtrees (ie the common case).  It is also helpful to make single-cursor movement cost "
                            "more than two-cursor movement, so that we only try a single-cursor move after matched movement fails.  "
-                           "The extra cost basically represents that we are adding or removing a set of parens, although they are not annotated. ")))))
-    (let [a (parse/parse-one (first example1))
-          b (parse/parse-one (second example1))
-          logs (vec (difflog/diff-log a b))]
-      (section
-       "Worked Example"
-       (p "I don't know about you, but I'm not the type who can absorb the essence of a complicated algorithm from a wall of text as seen above.  "
-          "So let's look at a detailed log of all the states we explored when generating the example diff at the top of this page.  "
-          "Note that these are all the states we " (dom/i {} "explore") " - some of them are never popped as the min-cost element of the PQ.  "
-          "Here is our initial state:")
-       (loginset (first logs))
-       (caption "The source cursor is blue, and the target cursor is purple.  "
-                "The header at the top shows information about the diff state:"
-                (dom/ul {}
-                        (dom/li {} (fixed "#000") "  is the step in which this state was added.  ")
-                        (dom/li {} (fixed "(popped)") "  means this state was popped off the priority queue.  ")
-                        (dom/li {} (fixed "-0/+0") "  is deletions/additions")
-                        (dom/li {} (fixed "cost 0/-92") "  is the heuristic cost / real cost.  Meaningless for start node.")
-                        (dom/li {} (fixed "remain 90/92") "  is the remaining cost of the source and target trees."))
-                (caption "Note that real cost = heuristic cost - max(source remaining, target remaining).  "
-                         "By heuristic cost, I mean the estimated total distance from the start to the goal, used as the key in the priority queue, "
-                         "or " (dom/i {} "g(n) + h(n)") " in "
-                         (dom/a {:href "https://en.wikipedia.org/wiki/A*_search_algorithm#Description"}
-                                "typical A* notation.  ")))
-       (caption "After we enter the main loop and pop the start state, we easily match the next two subtrees:")
+                           "The extra cost accounts for the fact that single-cursor movement corresponds to "
+                           "adding or removing a set of parens."))))))
+    (section
+      "Worked Example"
+      (p "I don't know about you, but I'm not the type who can absorb the essence of a complicated algorithm from a wall of text as seen above.  "
+        "So let's look at a detailed log of all the states we popped from our A* priority queue while generating the example diff at the top of this page.  "
+        "The states are numbered in the order in which they were explored, however I will only show the goal state and its predecessors,  "
+        "starting from the initial state.")))
+   (let [a (parse/parse (first example1))
+         b (parse/parse (second example1))
+         logs (vec (difflog/diff-log a b))]
+     (dom/div {:className "examplesection"}
+       (loginset (first logs)
+         (side-caption "The source cursor is blue, and the target cursor is purple.  "
+           "As you can see, we start with each cursor over its entire subtree.  "
+           "The header at the top shows information about the diff state:"
+           (dom/ul {}
+             (dom/li {} (fixed "-0,+0") "  is the number of deletions and additions")
+             (dom/li {} (fixed "cost 0/-92") "  is the heuristic cost / real cost.  Meaningless for start node.")
+             (dom/li {} (fixed "remain 90/92") "  is the remaining cost of the source and target trees."))
+           "Note that real cost = heuristic cost - max(source remaining, target remaining).  "
+           "By heuristic cost, I mean the estimated total distance from the start to the goal, used as the key in the priority queue, "
+           "or " (dom/i {} "g(n) + h(n)") " in "
+           (dom/a {:href "https://en.wikipedia.org/wiki/A*_search_algorithm#Description"}
+             "typical A* notation.  ")))
        (loginset
-        (comp/root {}
-                   (nth logs 1) (comp/spacer)
-                   (nth logs 2) (comp/spacer)
-                   (nth logs 3)))
+         (nth logs 3)
+         (side-caption "After we enter the main loop and pop the start state, we can start exploring.  "
+           "In this state we have matched the parentheses and descended into the defn body. "))
+       (loginset
+         (nth logs 6)
+         (side-caption "We matched " (fixed "defn") " with " (fixed "defn") " and advanced both cursors. "
+           "Now we can now match " (fixed "example") " with " (fixed "example") "."))
+       (loginset
+         (nth logs 7)
+         (side-caption "Since matching is done with subtree hashes, we can match " (fixed "[x]")
+           " without going into the vector at all."))
+       (loginset
+         (nth logs 8)
+         (side-caption
+           "Now we have our first mismatch.  We have a few options here:"
+           (dom/ol {}
+             (dom/li {} "Delete source (blue) subtree")
+             (dom/li {} "Add target (purple) subtree")
+             (dom/li {} "Go into both subtrees")
+             (dom/li {} "Go into blue subtree only")
+             (dom/li {} "Go into purple subtree only"))))
+       (loginset
+         (nth logs 13)
+         (side-caption "We explore all of those options, but eventually we choose the last.  "
+           "Since we moved the target cursor into a list while the source cursor stayed put, "
+           "it follows that if we finish diffing, the parens which create that extra list must have been added, "
+           "so we can go ahead and paint them green."))
+       (loginset
+         (nth logs 20)
+         (side-caption "Add the " (fixed "->") "."))
+       (loginset
+         (nth logs 25)
+         (side-caption "Now we enqueue this state, #25, where we delete " (fixed "(println \"hello\")") ".  "
+           "Since it's a relatively large subtree, deleting it has a high cost, "
+           "so we actually spend a lot of time going through other states before it is finally popped."))
+       (loginset
+         (nth logs 115)
+         (side-caption "But once we do pop it, we can match the identical maps under the cursors.  "
+           "Since the map was the last element in the source defn body, the source cursor has reached the "
+           "end of its list, so there is nothing to highlight in blue and it says "
+           (fixed "(nil S)") " in the header."))
+       (loginset
+         (nth logs 122)
+         (side-caption "Add " (fixed "(assoc :twice (+ x x))") ".  This is the last element in the current "
+           "target sequence, so now we have " (fixed "(nil S)") " and " (fixed "(nil T)") ".  "
+           "At this point the source stack is " (fixed "[nil]") " and the target stack is " (fixed "[nil nil]") ", "
+           "so we have to do two steps where we pop both and then pop target only, but the order doesn't matter."))
+       (loginset
+         (nth logs 125)
+         (side-caption  "In fact, since the stacks are not shown, we can't even tell which order was taken.  "
+           "In either case, from here we do whichever pop operation we didn't just do. "))
+       (loginset
+         (nth logs 126)
+         (side-caption "Now we have " (fixed "(nil S)") " and " (fixed "(nil T)") ", "
+           "and both stacks will be empty, so we are done!"))))))
 
-       (caption "Now we have our first mismatch.  We have a few options here:"
-                (dom/ol {}
-                        (dom/li {} "Delete blue subtree")
-                        (dom/li {} "Add purple subtree")
-                        (dom/li {} "Go into both subtrees")
-                        (dom/li {} "Go into blue subtree only")
-                        (dom/li {} "Go into purple subtree only")))
-       (caption "We explore all of those options, but eventually we choose the last:")
-       (loginset (nth logs 8))
-       (caption "Then we add " (fixed "->"))
-       (loginset (nth logs 12))
-       (caption "Now, we enqueue #20, where we delete " (fixed "(println \"hello\")") ":")
-       (loginset (nth logs 20))
-       (caption "It turns out that since deleting " (fixed "(println \"hello\")") " has a relatively high cost, "
-                "  we go through a bunch of other states before we finally pop #20.  "
-                "But once we do, we can match the identical subtrees and get to here:")
-       (loginset (nth logs 85))
-       (caption "Here we are at the end of the source list (the defn body), "
-                "so no cursor is drawn and it says (nil S) in the header.  "
-                "From here we add " (fixed "(assoc :twice (+ x x))") ":")
-       (loginset (nth logs 86))
-       (caption "Now we have the completed diff, and we have (nil S) and (nil T), "
-                "so all we need to do is pop out of the defn body and we're done!")
-       (loginset (nth logs 88))))))))
+(difflog/write-difflog
+  "."
+  "log.html"
+  (first example1)
+  (second example1))

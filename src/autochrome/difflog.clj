@@ -8,15 +8,18 @@
             [om.dom :as dom]))
 
 (defn diff2
+  "a and b should be root nodes but only one form is expected"
   [ann a b]
   (comp/panes
    {}
-   (some->> a list (page/diff-pane "the absolute"
-                                   (doto (ann/syntax-highlighting a)
-                                     (.putAll ann))))
-   (some->> b list (page/diff-pane "worst hack"
-                                   (doto (ann/syntax-highlighting a)
-                                     (.putAll ann))))))
+   (some->> a :contents first list
+     (page/diff-pane "the absolute"
+       (doto (ann/syntax-highlighting a)
+         (.putAll ann))))
+   (some->> b :contents first list
+     (page/diff-pane "worst hack"
+       (doto (ann/syntax-highlighting a)
+         (.putAll ann))))))
 
 (defn diff-log
   [aroot broot]
@@ -33,20 +36,20 @@
          {:id (str idhc)}
          (comp/heading
           (dom/span
-           {}
+           {:style {:font-size "16px"}}
            (str
             (format (str "#%0" maxdigits "d ") index)
             (if (identical? c goalstate) "goal! " "")
-            "(" (string/join " " (map name (:attrib info))) ")"
-            " -" (count (.-deleted c))
-            ",+" (count (.-added c))
+             ; "(" (string/join " " (map name (:attrib info))) ")"
+            " -" (count (filter (comp #{:deleted :parens-deleted} second) (.-changes c)))
+            ",+" (count (filter (comp #{:added :parens-added} second) (.-changes c)))
             " cost " (.-cost c)
             "/" (- (.-cost c) (max (.-sremain c) (.-tremain c)))
             " remain " (.-sremain c)
             "/" (.-tremain c)
             (if (nil? shead) " (nil S)" "")
             (if (nil? thead) " (nil T)" ""))
-           (dom/span {} " (" (Integer/toHexString idhc) " from "
+           #_(dom/span {} " (" (Integer/toHexString idhc) " from "
                      (dom/a {:href (str "#" (:pred info))} (some-> (:pred info) Integer/toHexString))
                      ")")))
          (diff2
@@ -59,8 +62,8 @@
 
 (defn write-difflog
   [outdir title astr bstr]
-  (let [a (parse/parse-one astr)
-        b (parse/parse-one bstr)]
+  (let [a (parse/parse astr)
+        b (parse/parse bstr)]
     #_(diff/dforms a b)
     (spit (str outdir "/" title ".html")
           (page/page

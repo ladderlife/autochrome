@@ -3,6 +3,8 @@
   (:import [clojure.lang Util]
            [java.util HashMap PriorityQueue IdentityHashMap]))
 
+(set! *warn-on-reflection* true)
+
 (defn compare-vectors-by-identity
   [a b]
   (let [na (count a)]
@@ -21,10 +23,11 @@
     (Util/hashCombine
      (System/identityHashCode (peek prevsources))
      (System/identityHashCode (peek prevtargets))))
-  (equals ^boolean [this that]
-    (boolean
-     (and (compare-vectors-by-identity (.-prevsources this) (.-prevsources that))
-          (compare-vectors-by-identity (.-prevtargets this) (.-prevtargets that))))))
+  (equals ^boolean [this that-obj]
+    (let [^DiffContext that that-obj]
+      (boolean
+       (and (compare-vectors-by-identity (.-prevsources this) (.-prevsources that))
+         (compare-vectors-by-identity (.-prevtargets this) (.-prevtargets that)))))))
 
 (deftype DiffState [cost sremain tremain source target context changes]
   ;; `source` and `target` are seqs, and we are diffing their heads
@@ -40,17 +43,15 @@
      (.hashCode context)
      (unchecked-add-int (System/identityHashCode source)
                         (System/identityHashCode target))))
-  (equals [this that]
-    (when-not (.-context this)
-      (throw (IllegalStateException. "no this context")))
-    (when-not (.-context that)
-      (throw (IllegalStateException. "no that context")))
-    (and (identical? (.-source this) (.-source that))
-         (identical? (.-target this) (.-target that))
-         (.equals (.-context this) (.-context that))))
+  (equals [this that-obj]
+    (let [^DiffState that that-obj]
+      (and (identical? (.-source this) (.-source that))
+        (identical? (.-target this) (.-target that))
+        (.equals (.-context this) (.-context that)))))
   Comparable
-  (compareTo [this that]
-    (- (.-cost this) (.-cost that))))
+  (compareTo [this that-obj]
+    (let [^DiffState that that-obj]
+      (- (.-cost this) (.-cost that)))))
 
 ;; for difflog
 (def explored-states (atom []))
@@ -79,13 +80,13 @@
     (reset! explored-states [start-state])
     (reset! state-info {})
     (loop []
-      (when-let [c (.poll pq)]
+      (when-let [^DiffState c (.poll pq)]
         (let [[shead & smore :as sforms] (.-source c)
               [thead & tmore :as tforms] (.-target c)
               cost (.get real-cost c)
               sremain (.-sremain c)
               tremain (.-tremain c)
-              context (.-context c)
+              ^DiffContext context (.-context c)
               prevsources (.-prevsources context)
               prevtargets (.-prevtargets context)]
           (swap! state-info update (System/identityHashCode c) update :attrib conj :popped)
@@ -130,7 +131,7 @@
               (recur))))))))
 
 (defn diffstate->annotations
-  [dst]
+  [^DiffState dst]
   (let [ann (IdentityHashMap.)]
     (doseq [[ptr a] (.-changes dst)]
       (.put ann ptr a))
