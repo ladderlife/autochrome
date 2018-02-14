@@ -3,12 +3,13 @@
             [clojure.java.shell :as sh]
             [clojure.string :as string]))
 
+(def ^:dynamic *auth-token* nil)
+
 (defn pr-request-params
   [owner repo num]
   (let [url (format "https://api.github.com/repos/%s/%s/pulls/%s" owner repo num)]
-    {:method :get
-     :url url
-     :content-type :json}))
+    (cond-> {:method :get :url url :content-type :json}
+      *auth-token* (assoc :basic-auth *auth-token*))))
 
 (defn pr-diffinfo
   [owner repo num]
@@ -17,7 +18,7 @@
                     (assoc :as :json)
                     http/request :body)
                 (catch Exception e
-                  (throw (Exception. (str "getting info url=" (pr-str (:url params)))))))
+                  (throw (Exception. (str "getting info params=" (pr-str params))))))
      :diff (try (-> params
                     (assoc :accept "application/vnd.github.VERSION.diff")
                     http/request :body)
@@ -127,10 +128,12 @@
     (try
       (:body
        (http/request
-        {:method :get
-         :url url
-         :content-type :json
-         :accept "application/vnd.github.VERSION.raw"}))
+        (cond->
+         {:method :get
+          :url url
+          :content-type :json
+          :accept "application/vnd.github.VERSION.raw"}
+          *auth-token* (assoc :basic-auth *auth-token*))))
       (catch Exception e
         (throw (Exception. (str "slurping " (pr-str url)) e))))))
 

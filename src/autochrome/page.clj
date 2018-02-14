@@ -184,6 +184,7 @@
 
 (defn diff-page
   [linkbase title changed-files]
+  (println (count changed-files) "changed files")
   (->> changed-files
        (mapcat
         (fn [{:keys [old-path old-text new-path new-text] :as patch}]

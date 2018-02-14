@@ -76,10 +76,19 @@
                 (form (first (:contents the-form))))
 
           :coll
-          (span {}
-                (str (:delim the-form))
-                (conj (mapv form (:wscontents the-form))
-                      (str (open->closed (:delim the-form)))))
+          (let [left (str (:delim the-form))
+                right (str (open->closed (:delim the-form)))
+                inner (mapv form (:wscontents the-form))]
+            (cond
+              (= :parens-added annotation)
+              (span {} (span {:className "added"} left)
+                    (conj inner (span {:className "added"} right)))
+
+              (= :parens-deleted annotation)
+              (span {} (span {:className "deleted"} left)
+                    (conj inner (span {:className "deleted"} right)))
+
+              :else (span {} left (conj inner right))))
 
           :lambda
           (span {} "#" (form (:text the-form)))

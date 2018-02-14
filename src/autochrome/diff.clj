@@ -26,14 +26,14 @@
      (and (compare-vectors-by-identity (.-prevsources this) (.-prevsources that))
           (compare-vectors-by-identity (.-prevtargets this) (.-prevtargets that))))))
 
-(deftype DiffState [cost sremain tremain source target context added deleted]
+(deftype DiffState [cost sremain tremain source target context changes]
   ;; `source` and `target` are seqs, and we are diffing their heads
   ;; `cost` is the sum of the size of all the added or deleted nodes in this diff
   ;; `sremain` and `tremain` are the remaining sizes of the source/target form respectively
   ;; `context` is how we know 'where we are' in the source & target structures
   ;;   without context, we can't tell when we're finished, since all states
   ;;   where source=target=nil would be indistinguishable.
-  ;; `added` and `deleted` are the cumulative adds and deletes from previous steps
+  ;; `changes` is a vector of [form change] where change is :added, :deleted etc
   Object
   (hashCode [this]
     (unchecked-add-int
@@ -63,11 +63,11 @@
         ;; use double the real size so that our hacks can't make the heuristic inadmissible
         start-state (DiffState. 0 (* 2 (.get size-map source)) (* 2 (.get size-map target))
                                 (:contents source) (:contents target)
-                                (DiffContext. [] []) [] [])
+                                (DiffContext. [] []) [])
         real-cost (doto (HashMap.) (.put start-state 0))
         pq (doto (PriorityQueue.) (.offer start-state))
-        explore (fn [ncost predstate sremain tremain nsource ntarget nctx added deleted]
-                  (let [ds (DiffState. (+ ncost (max sremain tremain)) sremain tremain nsource ntarget nctx added deleted)
+        explore (fn [ncost predstate sremain tremain nsource ntarget nctx changes]
+                  (let [ds (DiffState. (+ ncost (max sremain tremain)) sremain tremain nsource ntarget nctx changes)
                         prev-cost (.get real-cost ds)]
                     (swap! explored-states conj ds)
                     (swap! state-info update (System/identityHashCode ds) assoc :pred (System/identityHashCode predstate))
@@ -95,47 +95,45 @@
                   tsize (.get size-map thead)]
               ;; if we can match subtrees, don't bother doing anything else
               (if (and shead thead (= (.get hashes shead) (.get hashes thead)))
-                (explore cost c (- sremain ssize) (- tremain tsize) smore tmore context (.-added c) (.-deleted c))
+                (explore cost c (- sremain ssize) (- tremain tsize) smore tmore context (.-changes c))
                 (do
                   (if shead
                     ;; addition/deletion costs an extra point so that we prefer removing entire lists
-                    (explore (inc (+ cost ssize)) c (- sremain ssize) tremain smore tforms context (.-added c) (conj (.-deleted c) shead))
+                    (explore (inc (+ cost ssize)) c (- sremain ssize) tremain smore tforms context (conj (.-changes c) [shead :deleted]))
                     ;; if we are at the end of the source seq, pop back out if we can
                     (when (not= 0 (count prevsources))
                       (explore cost c sremain tremain (peek prevsources) tforms
-                               (DiffContext. (pop prevsources) prevtargets) (.-added c) (.-deleted c))))
+                               (DiffContext. (pop prevsources) prevtargets) (.-changes c))))
 
                   (if thead
                     ;; addition
-                    (explore (inc (+ cost tsize)) c sremain (- tremain tsize) sforms tmore context (conj (.-added c) thead) (.-deleted c))
+                    (explore (inc (+ cost tsize)) c sremain (- tremain tsize) sforms tmore context (conj (.-changes c) [thead :added]))
                     ;; pop back out
                     (when (not= 0 (count prevtargets))
                       (explore cost c sremain tremain sforms (peek prevtargets)
-                               (DiffContext. prevsources (pop prevtargets)) (.-added c) (.-deleted c))))
+                               (DiffContext. prevsources (pop prevtargets)) (.-changes c))))
 
                   ;; going into matching collections is not costless, again to prefer deleting entire lists
                   (when (and (tree/branch? shead) (tree/branch? thead) (= (:delim shead) (:delim thead)))
                     (explore (inc cost) c sremain tremain (tree/->children shead) (tree/->children thead)
-                             (DiffContext. (conj prevsources smore) (conj prevtargets tmore)) (.-added c) (.-deleted c)))
+                             (DiffContext. (conj prevsources smore) (conj prevtargets tmore)) (.-changes c)))
 
                   ;; going into source node corresponds to stripping a pair of parens
                   (when (tree/branch? shead)
                     (explore (+ 2 cost) c sremain tremain (tree/->children shead) tforms
-                             (DiffContext. (conj prevsources smore) prevtargets) (.-added c) (.-deleted c)))
+                             (DiffContext. (conj prevsources smore) prevtargets) (conj (.-changes c) [shead :parens-deleted])))
 
                   ;; going into target node is wrapping with a new set of parens
                   (when (and (tree/branch? thead))
                     (explore (+ 2 cost) c sremain tremain sforms (tree/->children thead)
-                             (DiffContext. prevsources (conj prevtargets tmore)) (.-added c) (.-deleted c)))))
+                             (DiffContext. prevsources (conj prevtargets tmore)) (conj (.-changes c) [thead :parens-added])))))
               (recur))))))))
 
 (defn diffstate->annotations
   [dst]
   (let [ann (IdentityHashMap.)]
-    (doseq [a (.-added dst)]
-      (.put ann a :added))
-    (doseq [d (.-deleted dst)]
-      (.put ann d :deleted))
+    (doseq [[ptr a] (.-changes dst)]
+      (.put ann ptr a))
     ann))
 
 (defn diff-forms

@@ -70,7 +70,7 @@
    [:.highlight {:background-color "#5d007a"}]
    [:.unparsed {:background-color "#ff0000"}]
    [:.added {:background-color "#225d2d"}]
-   [:.deleted {:background-color "#660b0b"}]
+   [:.deleted {:background-color "rgba(222, 18, 18, 0.81)"}]
    [:.first-seen {:text-decoration :underline}]
    [:.comment {:color "#969896" :font-style :italic :font-weight :normal}]
    [:.diffpane {:width "50%"}]
