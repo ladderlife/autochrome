@@ -10,7 +10,7 @@ github pull requests or local git repos. For more information, some examples, an
 $ lein run <owner> <repo> <pr-number> -o diff.html        # write a diff for a GitHub pull request
 $ lein run --token user:123abc <owner> <repo> <pr-number> # use supplied auth token for github api
 $ lein run ... --open                                     # try to open the diff in a browser
-$ lein uberjar                                      # create a standalone jar in target/ directory
+$ lein uberjar                                            # create a standalone jar in target/ directory
 $ java -jar autochrome.jar <old-tree> <new-tree>          # run like git diff from your repo
 ```
 

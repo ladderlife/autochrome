@@ -50,7 +50,7 @@
         default-ctx {:new [] :old [] :start 0}]
     (loop [context default-ctx
            line-index 0]
-      (let [line (get lines line-index)]
+      (let [^String line (get lines line-index)]
         (if-not line
           {:hunks (persistent! (vswap! hunks conj! context))
            :filechanges
