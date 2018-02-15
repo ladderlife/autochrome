@@ -22,7 +22,7 @@
    [:p {:text-indent "2em"}]
    [:.diffpane {:width "unset"}]
    [:.text {:font-family "sans-serif"}]
-   [:.textcontainer {:width "50%"
+   [:.textcontainer {:width "67%"
                      :font-size "18px"}]
    [:.title {:font-size "32px"}]
    [:.sectiontitle {:font-size "24px"
@@ -39,7 +39,7 @@
              ;:margin "10px auto"
              }]
    [:.examplesection {:font-size "16px"
-                      :width "58%"
+                      :width "70%"
                       :margin "auto"}]
    [:.fixed {:font-family "monospace"
              :background-color "#111"}]))
