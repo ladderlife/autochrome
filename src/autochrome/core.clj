@@ -1,8 +1,8 @@
 (ns autochrome.core
   (:require [autochrome.github :as github]
             [autochrome.page :as page]
-            [clojure.tools.cli :as cli]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [clojure.tools.cli :as cli])
   (:import [java.awt Desktop]
            [java.io File])
   (:gen-class))
@@ -28,8 +28,7 @@
       (spit output-file the-page))
     (if (and (:open options) (Desktop/isDesktopSupported))
       (.browse (Desktop/getDesktop)
-        (.toURI output-file))
+               (.toURI output-file))
       (when-not (:output options)
         (io/copy output-file *out*))))
   (shutdown-agents))
-

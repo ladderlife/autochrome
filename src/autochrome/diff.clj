@@ -27,7 +27,7 @@
     (let [^DiffContext that that-obj]
       (boolean
        (and (compare-vectors-by-identity (.-prevsources this) (.-prevsources that))
-         (compare-vectors-by-identity (.-prevtargets this) (.-prevtargets that)))))))
+            (compare-vectors-by-identity (.-prevtargets this) (.-prevtargets that)))))))
 
 (deftype DiffState [cost sremain tremain source target context changes]
   ;; `source` and `target` are seqs, and we are diffing their heads
@@ -46,8 +46,8 @@
   (equals [this that-obj]
     (let [^DiffState that that-obj]
       (and (identical? (.-source this) (.-source that))
-        (identical? (.-target this) (.-target that))
-        (.equals (.-context this) (.-context that)))))
+           (identical? (.-target this) (.-target that))
+           (.equals (.-context this) (.-context that)))))
   Comparable
   (compareTo [this that-obj]
     (let [^DiffState that that-obj]

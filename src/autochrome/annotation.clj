@@ -9,7 +9,10 @@
   [{:keys [type text delim wscontents] :as form} ann]
   (let [a (.get ann form)
         rec (cond
-              (or (= type :coll) (clj-common/decoration? form))
+              (or (= type :coll)
+                  (= type :reader-conditional)
+                  (= type :reader-conditional-splicing)
+                  (clj-common/decoration? form))
               (assoc form :wscontents (mapv #(attach % ann) wscontents))
 
               (= type :quote)

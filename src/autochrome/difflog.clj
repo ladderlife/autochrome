@@ -4,7 +4,6 @@
             [autochrome.diff :as diff]
             [autochrome.page :as page]
             [autochrome.parse :as parse]
-            [clojure.string :as string]
             [om.dom :as dom]))
 
 (defn diff2
@@ -13,13 +12,13 @@
   (comp/panes
    {}
    (some->> a :contents first list
-     (page/diff-pane "the absolute"
-       (doto (ann/syntax-highlighting a)
-         (.putAll ann))))
+            (page/diff-pane "the absolute"
+                            (doto (ann/syntax-highlighting a)
+                              (.putAll ann))))
    (some->> b :contents first list
-     (page/diff-pane "worst hack"
-       (doto (ann/syntax-highlighting a)
-         (.putAll ann))))))
+            (page/diff-pane "worst hack"
+                            (doto (ann/syntax-highlighting a)
+                              (.putAll ann))))))
 
 (defn diff-log
   [aroot broot]
@@ -50,8 +49,8 @@
             (if (nil? shead) " (nil S)" "")
             (if (nil? thead) " (nil T)" ""))
            #_(dom/span {} " (" (Integer/toHexString idhc) " from "
-                     (dom/a {:href (str "#" (:pred info))} (some-> (:pred info) Integer/toHexString))
-                     ")")))
+                       (dom/a {:href (str "#" (:pred info))} (some-> (:pred info) Integer/toHexString))
+                       ")")))
          (diff2
           (doto (diff/diffstate->annotations c)
             (.put shead :shead)
@@ -75,5 +74,5 @@
   (write-difflog
    "/tmp/a"
    "difflog2"
-   "['[:a :b :c :d :e]]"
-   "[(count '[:a :b :c :d :e])]"))
+   "#?@(:clj [:foo :bar] :cljs [:a :b :c])"
+   "#?@(:clj [:bar] :cljs [:lmao])"))
