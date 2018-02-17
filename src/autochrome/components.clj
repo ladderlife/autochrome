@@ -71,9 +71,8 @@
           :var-quote    (span {:className "var-ref"} "#'" text)
           ;; TODO hash-under
           (:deref :syntax-quote :unquote :unquote-splicing)
-          (span {}
-                (clj-common/->decorator the-form)
-                (form (first (:contents the-form))))
+          (span {} (clj-common/->decorator the-form)
+                (mapv form (:wscontents the-form)))
 
           :coll
           (let [left (str (:delim the-form))
