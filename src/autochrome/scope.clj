@@ -289,7 +289,10 @@
       ;; TODO proxy
 
       (if-let [tlw (top-level-walker-fn dispatch-form)]
-        (tlw form func ctx)
+        (tlw
+         ;; gross hack so we don't get destroyed by (def ^:dynamic foo ...)
+         (assoc form :contents (filter #(not= :meta (:type %)) (:contents form)))
+         func ctx)
         (walk-body params func ctx)))))
 
 (defn walk-with-scope
