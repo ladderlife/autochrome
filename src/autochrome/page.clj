@@ -10,7 +10,8 @@
             [hiccup.page :as hp]
             [om.dom :as dom])
   (:import [java.security MessageDigest]
-           [javax.xml.bind DatatypeConverter]))
+           [javax.xml.bind DatatypeConverter]
+           [java.util IdentityHashMap]))
 
 (defn clojure-file?
   [s]
@@ -91,18 +92,15 @@
 
 (defn two-file-diff
   [linkbase old new]
-  (let [ann (diff/diff-forms (:root old) (:root new))
+  (let [aforms (:contents (:root old))
         bforms (:contents (:root new))
-        aforms (:contents (:root old))
         adefs (group-by top-level-text aforms)
         bdefs (group-by top-level-text bforms)
         common? (set (filter #(= 1 (count (adefs %)) (count (bdefs %))) (keys bdefs)))
         matched-pairs
         (for [b bforms
               :when (common? (top-level-text b))
-              :let [matched (first (get adefs (top-level-text b)))]
-              :when (or (annotation/annotated? b ann)
-                        (annotation/annotated? matched ann))]
+              :let [matched (first (get adefs (top-level-text b)))]]
           {:line (:start-line b)
            :forms [matched b]})
         unmatched-pairs
@@ -111,11 +109,7 @@
                [b :as bs] bforms]
           (cond
             (and (empty? as) (empty? bs))
-            (interpose (comp/spacer) result)
-
-            (and (not (annotation/annotated? a ann))
-                 (not (annotation/annotated? b ann)))
-            (recur result (next as) (next bs))
+            result
 
             (common? (top-level-text a))
             (recur result (next as) bs)
@@ -126,18 +120,30 @@
             :else
             (recur
              (conj result {:line (or (:start-line b) (:start-line a))
-                           :forms [(and (annotation/annotated? a ann) a)
-                                   (and (annotation/annotated? b ann) b)]})
+                           :forms [a b]})
              (next as)
-             (next bs))))]
+             (next bs))))
+        ann2
+        (fn [a b]
+          (cond
+            (nil? a) (doto (IdentityHashMap.) (.put b :added))
+            (nil? b) (doto (IdentityHashMap.) (.put a :deleted))
+            :else (diff/diff-forms a b)))
+        diff2
+        (fn [a b]
+          (let [ann (ann2 a b)]
+            (when-not (.isEmpty ann)
+              (comp/panes
+               {}
+               (some->> a list (diff-pane (str linkbase (md5sum (:path old)) "L") ann))
+               (some->> b list (diff-pane (str linkbase (md5sum (:path new)) "R") ann))))))]
     (->> (concat matched-pairs unmatched-pairs)
          (sort-by :line)
-         (map
+         (keep
           (fn [{[a b] :forms}]
-            (comp/panes
-             {}
-             (some->> a list (diff-pane (str linkbase (md5sum (:path old)) "L") ann))
-             (some->> b list (diff-pane (str linkbase (md5sum (:path new)) "R") ann))))))))
+            (let [empty-form {:type :root :contents []}]
+              (diff2 a b))))
+         (interpose (comp/spacer)))))
 
 (defn delete-everything
   [root]
