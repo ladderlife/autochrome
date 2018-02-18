@@ -107,13 +107,9 @@
 
 (defn line-numbers
   [{:keys [lines start-line linkbase] :as the-form :or {linkbase "hahaha"}}]
-  (if-not (and lines start-line)
-    (println 'no-line-numbers (autochrome.parse/render the-form))
-    (for [i (range start-line (+ start-line lines))
-          :let [;; make up a unique id so the browser doesn't try to scroll
-                uid (str (.substring linkbase (- (count linkbase) 5)) i)]]
-      (cond->> (dom/div {} (str i))
-               linkbase (dom/a {:href (str linkbase i)})))))
+  (for [i (range start-line (+ start-line lines))]
+    (cond->> (dom/div {} (str i))
+             linkbase (dom/a {:href (str linkbase i)}))))
 
 (defcomponent code
   [{:keys [lines start-line linkbase things annotation id] :as the-form} children]
