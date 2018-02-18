@@ -53,10 +53,6 @@
     (let [^DiffState that that-obj]
       (- (.-cost this) (.-cost that)))))
 
-(defn get-cost
-  [^DiffState ds]
-  (.-cost ds))
-
 (defn get-target
   [^DiffState ds]
   (.-origtarget ds))
@@ -65,8 +61,6 @@
 (def explored-states (atom []))
 (def state-info (atom {}))
 (def nprocessed (atom 0))
-
-(def ^:dynamic *max-cost* Long/MAX_VALUE)
 
 (defn diff-prep
   [sources targets]

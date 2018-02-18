@@ -33,7 +33,7 @@
 
         (empty? targets)
         (concat diffs
-                (for [s sources]
+                (for [s (cons the-source sources)]
                   [s nil (doto (IdentityHashMap.) (.put s :deleted))]))
 
         :else

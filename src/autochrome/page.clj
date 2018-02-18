@@ -6,6 +6,7 @@
             [autochrome.github :as github]
             [autochrome.parse :as parse]
             [autochrome.styles :as styles]
+            [com.climate.claypoole :as cp]
             [hiccup.page :as hp]
             [om.dom :as dom])
   (:import [java.security MessageDigest]
@@ -134,20 +135,25 @@
        (interpose "\n")
        (dom/pre {})))
 
+(def ^:dynamic *clojure-only* false)
+
 (defn diff-page
   [linkbase title changed-files]
   (println (count changed-files) "changed files")
   (->> changed-files
-       (mapcat
-        (fn [{:keys [old-path new-path] :as patch}]
-          [(patch-heading patch)
-           (if (or (clojure-file? new-path)
-                   (and (= "/dev/null" new-path)
-                        (clojure-file? old-path)))
-             (clojure-diff linkbase patch)
-             (raw-diff linkbase patch))
-           (comp/spacer)
-           (comp/spacer)]))
+       (cp/upmap
+         (cp/threadpool (cp/ncpus))
+         (fn [{:keys [old-path new-path] :as patch}]
+           (let [file-diff
+                 (if (or (clojure-file? new-path)
+                         (and (= "/dev/null" new-path)
+                              (clojure-file? old-path)))
+                   (clojure-diff linkbase patch)
+                   (when-not *clojure-only*
+                     (raw-diff linkbase patch)))]
+             (when file-diff
+               [(patch-heading patch) file-diff (comp/spacer) (comp/spacer)]))))
+       (apply concat)
        (comp/root {})
        (page title)))
 

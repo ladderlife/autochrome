@@ -20,9 +20,10 @@
 
 (defn diff-log
   [aroot broots]
+  (reset! diff/nprocessed 0)
   (let [goalstate (time (diff/dforms aroot broots))
         maxdigits (count (str (count @diff/explored-states)))]
-    (println 'explored (count @diff/explored-states) 'states 'popped @diff/npopped)
+    (println 'explored (count @diff/explored-states) 'states 'popped @diff/nprocessed)
     (for [index (range (count @diff/explored-states))
           :let [c (nth @diff/explored-states index)
                 idhc (System/identityHashCode c)
