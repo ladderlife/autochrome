@@ -11,20 +11,18 @@
   [ann a b]
   (comp/panes
    {}
-   (some->> a :contents first list
-            (page/diff-pane "the absolute"
-                            (doto (ann/syntax-highlighting a)
-                              (.putAll ann))))
-   (some->> b :contents first list
-            (page/diff-pane "worst hack"
-                            (doto (ann/syntax-highlighting a)
-                              (.putAll ann))))))
+   (when a
+     (page/render-top-level-form
+       (ann/attach a (doto (ann/syntax-highlighting a) (.putAll ann)))))
+   (when b
+     (page/render-top-level-form
+       (ann/attach b (doto (ann/syntax-highlighting b) (.putAll ann)))))))
 
 (defn diff-log
-  [aroot broot]
-  (let [goalstate (diff/dforms aroot broot)
+  [aroot broots]
+  (let [goalstate (time (diff/dforms aroot broots))
         maxdigits (count (str (count @diff/explored-states)))]
-    (println 'explored (count @diff/explored-states) 'states)
+    (println 'explored (count @diff/explored-states) 'states 'popped @diff/npopped)
     (for [index (range (count @diff/explored-states))
           :let [c (nth @diff/explored-states index)
                 idhc (System/identityHashCode c)
@@ -43,7 +41,7 @@
             " -" (count (filter (comp #{:deleted :parens-deleted} second) (.-changes c)))
             ",+" (count (filter (comp #{:added :parens-added} second) (.-changes c)))
             " cost " (.-cost c)
-            "/" (- (.-cost c) (max (.-sremain c) (.-tremain c)))
+            ;; "/" (- (.-cost c) (max (.-sremain c) (.-tremain c)))
             " remain " (.-sremain c)
             "/" (.-tremain c)
             (if (nil? shead) " (nil S)" "")
@@ -56,23 +54,12 @@
             (.put shead :shead)
             (.put thead :thead))
           aroot
-          broot)
+          (.-origtarget c))
          #_(comp/spacer))))))
 
-(defn write-difflog
-  [outdir title astr bstr]
-  (let [a (parse/parse astr)
-        b (parse/parse bstr)]
-    #_(diff/dforms a b)
-    (spit (str outdir "/" title ".html")
-          (page/page
-           title
-           (comp/root {}
-                      (diff-log a b))))))
 
-(comment
-  (write-difflog
-   "/tmp/a"
-   "difflog2"
-   "#?@(:clj [:foo :bar] :cljs [:a :b :c])"
-   "#?@(:clj [:bar] :cljs [:lmao])"))
+#_(write-difflog
+  "."
+  "difflog2"
+  (slurp "src/autochrome/tree.clj")
+  (slurp "src/autochrome/treecopy.clj"))

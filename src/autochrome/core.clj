@@ -32,3 +32,4 @@
       (when-not (:output options)
         (io/copy output-file *out*))))
   (shutdown-agents))
+
