@@ -64,7 +64,7 @@
 ;; for difflog
 (def explored-states (atom []))
 (def state-info (atom {}))
-(def npopped (atom 0))
+(def nprocessed (atom 0))
 
 (def ^:dynamic *max-cost* Long/MAX_VALUE)
 
@@ -96,14 +96,13 @@
                        (.offer pq ds))))]
      (reset! explored-states [])
      (reset! state-info {})
-     (reset! npopped 0)
      (doseq [t targets
              :let [start-state (DiffState. 0 (list source) (list t) (DiffContext. [] []) [] t)]]
        (.offer pq start-state)
        (.put real-cost start-state 0))
      (loop []
        (when-let [^DiffState c (.poll pq)]
-         (swap! npopped inc)
+         (swap! nprocessed inc)
          (let [[shead & smore :as sforms] (.-source c)
                [thead & tmore :as tforms] (.-target c)
                cost (.get real-cost c)

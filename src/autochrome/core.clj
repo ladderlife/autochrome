@@ -1,5 +1,6 @@
 (ns autochrome.core
-  (:require [autochrome.github :as github]
+  (:require [autochrome.diff :as diff]
+            [autochrome.github :as github]
             [autochrome.page :as page]
             [clojure.java.io :as io]
             [clojure.tools.cli :as cli])
@@ -23,6 +24,7 @@
         output-file (if (:output options)
                       (io/file (:output options))
                       (File/createTempFile "diff" ".html"))]
+    (binding [*out* *err*] (println 'processed @diff/nprocessed 'states))
     (if-not the-page
       (println "expected 2 or 3 args [treeA treeB] or [owner repo pr-id] ")
       (spit output-file the-page))
@@ -32,4 +34,3 @@
       (when-not (:output options)
         (io/copy output-file *out*))))
   (shutdown-agents))
-
