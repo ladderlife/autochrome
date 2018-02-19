@@ -411,7 +411,6 @@
            "If you split a 100-line function into two pieces and also make a bunch of changes, it might take like 30 seconds to diff.  "
            "That's not great, but you'll probably spend more than 30 seconds looking at a diff like that anyway."))))))
 
-(do
+(clojure.core/comment
   (gen-readme)
-  ;(difflog/write-difflog "difflog" (first example1) [(second example1)])
-  )
+  (difflog/write-difflog "difflog" (first example1) [(second example1)]))
