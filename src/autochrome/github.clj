@@ -138,6 +138,9 @@
         (throw (Exception. (str "slurping " (pr-str url)) e))))))
 
 ;; local git stuff
+
+(def ^:dynamic *git-dir* ".")
+
 (defn ls-tree
   [rev]
   (reduce
@@ -148,7 +151,9 @@
            path (aget sp 3)]
        (cond-> m (.contains path ".clj") (assoc path sha))))
    {}
-   (-> (sh/sh "git" "ls-tree" "-r" rev) :out (.split "\n"))))
+   (-> (sh/sh "git" "ls-tree" "-r" rev :dir *git-dir*)
+       :out
+       (.split "\n"))))
 
 (defn ->changed-files
   [rawdiff slurp-new-blob-fn]
@@ -189,19 +194,17 @@
 
 (defn slurp-blob-from-local-git
   [sha]
-  (let [result (sh/sh "git" "cat-file" "blob" sha)]
+  (let [result (sh/sh "git" "cat-file" "blob" sha :dir *git-dir*)]
     (when (= 0 (:exit result))
       (:out result))))
 
 (defn local-diff
   [oldref newref]
   (let [new-tree (ls-tree newref)
-        rawdiff (:out (sh/sh "git" "diff" oldref newref))]
+        rawdiff (:out (sh/sh "git" "diff" oldref newref :dir *git-dir*))]
     (->changed-files
      rawdiff
      #(when-let [sha (get new-tree %)]
         (slurp-blob-from-local-git sha)))))
 
-(defn merge-base
-  [head base]
-  (.trim (:out (sh/sh "git" "merge-base" head base))))
+

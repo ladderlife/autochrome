@@ -81,11 +81,8 @@
          explore (fn [ncost ^DiffState predstate nsource ntarget nctx changes]
                    (let [ds (DiffState. ncost nsource ntarget nctx changes (.-origtarget predstate))
                          prev-cost (.get real-cost ds)]
-                     (swap! explored-states conj ds)
                      (swap! state-info update (System/identityHashCode ds) assoc :pred (System/identityHashCode predstate))
                      (when (and (or (nil? prev-cost) (< ncost prev-cost)))
-                       (swap! state-info update (System/identityHashCode ds) update :attrib conj
-                              (if (nil? prev-cost) :best :better))
                        (.put real-cost ds ncost)
                        (.offer pq ds))))]
      (reset! explored-states [])
@@ -97,6 +94,7 @@
      (loop []
        (when-let [^DiffState c (.poll pq)]
          (swap! nprocessed inc)
+         (swap! explored-states conj c)
          (let [[shead & smore :as sforms] (.-source c)
                [thead & tmore :as tforms] (.-target c)
                cost (.get real-cost c)

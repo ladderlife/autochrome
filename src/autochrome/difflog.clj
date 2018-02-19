@@ -7,7 +7,6 @@
             [om.dom :as dom]))
 
 (defn diff2
-  "a and b should be root nodes but only one form is expected"
   [ann a b]
   (comp/panes
    {}
@@ -20,10 +19,8 @@
 
 (defn diff-log
   [aroot broots]
-  (reset! diff/nprocessed 0)
-  (let [goalstate (time (diff/dforms aroot broots))
+  (let [goalstate (diff/dforms aroot broots)
         maxdigits (count (str (count @diff/explored-states)))]
-    (println 'explored (count @diff/explored-states) 'states 'popped @diff/nprocessed)
     (for [index (range (count @diff/explored-states))
           :let [c (nth @diff/explored-states index)
                 idhc (System/identityHashCode c)
@@ -43,8 +40,8 @@
             ",+" (count (filter (comp #{:added :parens-added} second) (.-changes c)))
             " cost " (.-cost c)
             ;; "/" (- (.-cost c) (max (.-sremain c) (.-tremain c)))
-            " remain " (.-sremain c)
-            "/" (.-tremain c)
+            ; " remain " (.-sremain c)
+            ;"/" (.-tremain c)
             (if (nil? shead) " (nil S)" "")
             (if (nil? thead) " (nil T)" ""))
            #_(dom/span {} " (" (Integer/toHexString idhc) " from "
@@ -59,8 +56,18 @@
          #_(comp/spacer))))))
 
 
-#_(write-difflog
-  "."
-  "difflog2"
-  (slurp "src/autochrome/tree.clj")
-  (slurp "src/autochrome/treecopy.clj"))
+(defn write-difflog
+  [title astr bstrs]
+  (let [a (parse/parse-one astr)
+        bs (map parse/parse-one bstrs)]
+    (spit (str title ".html")
+          (page/page
+            title
+            (comp/root {}
+                       (diff-log a bs))))))
+
+(comment
+  (write-difflog
+   "difflog2"
+   "[:a :b :c]"
+   ["[:a :b :c :d :e]"]))
