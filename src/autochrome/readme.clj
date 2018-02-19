@@ -22,7 +22,7 @@
    [:p {:text-indent "2em"}]
    [:.diffpane {:width "unset"}]
    [:.text {:font-family "sans-serif"}]
-   [:.textcontainer {:width "67%"
+   [:.textcontainer {:width "57%"
                      :font-size "18px"}]
    [:.title {:font-size "32px"}]
    [:.sectiontitle {:font-size "24px"
@@ -87,9 +87,9 @@
 
 (defn diff2
   [atext btext]
-  (let [aroot (parse/parse atext)
-        broot (parse/parse btext)]
-    (difflog/diff2 (diff/diff-forms aroot broot) aroot broot)))
+  (let [aroot (parse/parse-one atext)
+        broot (parse/parse-one btext)]
+    (difflog/diff2 (diff/diff-forms aroot [broot]) aroot broot)))
 
 (defn side-caption
   [& body]
@@ -206,19 +206,16 @@
           "It takes the form of a command-line tool which generates diffs as static HTML: ")
        (term
         "$ lein run " (dom/i {} "owner") " " (dom/i {} "repo") " " (dom/i {} "num") " -o diff.html"
-        (comment "        # write a diff for a GitHub pull request")
+        (comment "        # write a diff for a github pull request")
 
         "\n$ lein run --token user:123abc "(dom/i {} "owner") " " (dom/i {} "repo") " " (dom/i {} "num")
         (comment " # use supplied auth token for github api")
 
-        "\n$ lein run ... --open"
-        (comment "                         # try to open the diff in a browser")
+        "\n$ lein run --git-dir " (dom/i {} "/your/repo/ ") (dom/i {} "old-tree") " " (dom/i {} "new-tree")
+        (comment "  # like git diff, using specified repo")
 
-        "\n$ lein uberjar"
-        (comment "                          # create a standalone jar in target/ directory")
-
-        "\n$ java -jar autochrome.jar " (dom/i {} "old-tree") " " (dom/i {} "new-tree")
-        (comment "  # run like git diff from your repo"))
+        "\n$ lein run --open ..."
+        (comment "                         # try to open the diff in a browser"))
        (p "If generated from GitHub, the line numbers in Clojure diffs link back to the PR.  "
           "Bold symbols link to documentation."))
       (section
@@ -247,13 +244,14 @@
           (dom/a {:href "http://thume.ca/2017/06/17/tree-diffing/"}
                  "Tristan Hume's article about tree diffing")
           ", I was inspired to give it a shot myself using the same A* pathfinding technique he described.  "
-          "In order to apply A* to the problem of tree diffing, you need to extend the concepts "
-          "of location, cost, distance, and adjacency to tree diffs.  Location is clearly needed to know where you are, "
-          "but in addition they need to be comparable, so you know not to bother when you already have a better "
+          "I ended up ditching A* for plain old Dijkstra's algorithm however - "
+          (dom/a {:href "#alignment"} "more on that later") ".  "
+          "Either way, in order to frame tree diffing as a pathfinding problem, you need to extend the concepts "
+          "of location, cost, and adjacency to tree diffs.  Location is clearly needed to know where you are, "
+          "but in addition locations need to be comparable, so you know not to bother when you already have a better "
           "path to the same place.  "
           "Cost is what makes some paths preferred over others.  For pathfinding on a road network, this would be "
-          "the total distance traveled along the roads used.  By 'distance' I really mean the A* heuristic, "
-          "which in the case of roads might be the straight-line distance to the destination.  "
+          "the total distance traveled along the roads used. "
           "Adjacency is what states are reachable from a particular state.  For roads you might say that intersections are "
           "the nodes and adjacency means there is a road connecting them.  "
           "In autochrome:"
@@ -267,9 +265,6 @@
                           "Subtree size is 1 for empty collections, character count for text nodes, and sum size of children for branch nodes.  "
                           "The number of subtrees changed is included in the cost so that the algorithm prefers deleting/adding entire"
                           "lists, rather than all their elements (since they have the same cost otherwise).")
-                  (dom/li {} "Distance is the maximum of the \"remaining\" tree sizes for the source and target tree.  "
-                          "Whenever a subtree is accounted for by being added, deleted, or matched with an identical subtree, "
-                          "its size is subtracted from the remaining size.")
                   (dom/li {} "Adjacency is a bit complicated:"
                           (dom/ul {}
                                   (dom/li {} "When the source and target cursors are over identical subtrees, we always advance both cursors.")
@@ -302,40 +297,32 @@
      (section
       "Worked Example"
       (p "I don't know about you, but I'm not the type who can absorb the essence of a complicated algorithm from a wall of text as seen above.  "
-         "So let's look at a detailed log of all the states we popped from our A* priority queue while generating the example diff at the top of this page.  "
-         "The states are numbered in the order in which they were explored, however I will only show the goal state and its predecessors,  "
+         "So let's look at a detailed log of the states we popped from our priority queue while generating the example diff at the top of this page.  "
+         "The states are numbered in the order in which they were processed.  We will look at the goal state and each of its predecessors,  "
          "starting from the initial state.")))
-    (let [a (parse/parse (first example1))
-          b (parse/parse (second example1))
-          logs (vec (difflog/diff-log a b))]
+    (let [a (parse/parse-one (first example1))
+          b (parse/parse-one (second example1))
+          logs (vec (difflog/diff-log a [b]))]
       (dom/div {:className "examplesection"}
                (loginset (first logs)
                          (side-caption "The source cursor is blue, and the target cursor is purple.  "
-                                       "As you can see, we start with each cursor over its entire subtree.  "
-                                       "The header at the top shows information about the diff state:"
-                                       (dom/ul {}
-                                               (dom/li {} (fixed "-0,+0") "  is the number of deletions and additions")
-                                               (dom/li {} (fixed "cost 0/-92") "  is the heuristic cost / real cost.  Meaningless for start node.")
-                                               (dom/li {} (fixed "remain 90/92") "  is the remaining cost of the source and target trees."))
-                                       "Note that real cost = heuristic cost - max(source remaining, target remaining).  "
-                                       "By heuristic cost, I mean the estimated total distance from the start to the goal, used as the key in the priority queue, "
-                                       "or " (dom/i {} "g(n) + h(n)") " in "
-                                       (dom/a {:href "https://en.wikipedia.org/wiki/A*_search_algorithm#Description"}
-                                              "typical A* notation.  ")))
+                                       "As you can see, we start with each cursor over its entire subtree.  "))
                (loginset
-                (nth logs 3)
+                (nth logs 1)
                 (side-caption "After we enter the main loop and pop the start state, we can start exploring.  "
-                              "In this state we have matched the parentheses and descended into the defn body. "))
+                              "In this state we have matched the parentheses and descended into the defn body. "
+                              "Going into lists has cost 1, so that deleting an entire list "
+                              "is cheaper than deleting each of its elements."))
                (loginset
-                (nth logs 6)
+                (nth logs 2)
                 (side-caption "We matched " (fixed "defn") " with " (fixed "defn") " and advanced both cursors. "
                               "Now we can now match " (fixed "example") " with " (fixed "example") "."))
                (loginset
-                (nth logs 7)
+                (nth logs 3)
                 (side-caption "Since matching is done with subtree hashes, we can match " (fixed "[x]")
                               " without going into the vector at all."))
                (loginset
-                (nth logs 8)
+                (nth logs 4)
                 (side-caption
                  "Now we have our first mismatch.  We have a few options here:"
                  (dom/ol {}
@@ -345,39 +332,85 @@
                          (dom/li {} "Go into blue subtree only")
                          (dom/li {} "Go into purple subtree only"))))
                (loginset
-                (nth logs 13)
+                (nth logs 8)
                 (side-caption "We explore all of those options, but eventually we choose the last.  "
                               "Since we moved the target cursor into a list while the source cursor stayed put, "
                               "it follows that if we finish diffing, the parens which create that extra list must have been added, "
-                              "so we can go ahead and paint them green."))
+                              "so we can go ahead and paint them green, and add 2 to the cost."))
                (loginset
-                (nth logs 20)
-                (side-caption "Add the " (fixed "->") "."))
+                (nth logs 11)
+                (side-caption "Add the " (fixed "->") ".  It has size 2, but the new cost is 6.  This is because "
+                              "each addition/deletion costs 1 extra point, so that "
+                              "minimal diffs are cheaper than equivalent diffs with more changes. "))
                (loginset
-                (nth logs 25)
-                (side-caption "Now we enqueue this state, #25, where we delete " (fixed "(println \"hello\")") ".  "
-                              "Since it's a relatively large subtree, deleting it has a high cost, "
-                              "so we actually spend a lot of time going through other states before it is finally popped."))
+                (nth logs 60)
+                (side-caption " Delete " (fixed "(println \"hello\")") ".  Note that this is state #60 while the previous "
+                              "state was #11 - we explored a whole bunch of dead-end states in between.  "
+                              "This is because the deletion has a relatively high cost, so Dijkstra prefers to do "
+                              "low- or no-cost movement before eventually getting around to this state."))
                (loginset
-                (nth logs 115)
-                (side-caption "But once we do pop it, we can match the identical maps under the cursors.  "
-                              "Since the map was the last element in the source defn body, the source cursor has reached the "
-                              "end of its list, so there is nothing to highlight in blue and it says "
-                              (fixed "(nil S)") " in the header."))
+                (nth logs 63)
+                (side-caption "Match the identical maps and advance each cursor.  "
+                              "Since the map was the last element in the source defn body, the "
+                              "source cursor has reached the end of its list, so there is nothing to highlight "
+                              "in blue and it says " (fixed "(nil S)") " in the header."))
                (loginset
-                (nth logs 122)
-                (side-caption "Add " (fixed "(assoc :twice (+ x x))") ".  This is the last element in the current "
-                              "target sequence, so now we have " (fixed "(nil S)") " and " (fixed "(nil T)") ".  "
-                              "At this point the source stack is " (fixed "[nil]") " and the target stack is " (fixed "[nil nil]") ", "
-                              "so we have to do two steps where we pop both and then pop target only, but the order doesn't matter."))
+                (nth logs 65)
+                (side-caption "It may look like nothing happened, but we popped out of the left subtree only here.  "
+                              "This is an example of how movement operations get processed before any additions/deletions.  "
+                              "It's completely free to explore here, so we might as well!"))
                (loginset
-                (nth logs 125)
-                (side-caption  "In fact, since the stacks are not shown, we can't even tell which order was taken.  "
-                               "In either case, from here we do whichever pop operation we didn't just do. "))
+                 (nth logs 197)
+                 (side-caption "Add " (fixed "(assoc :twice (+ x x))") ".  Another costly change means another big gap in state number.  "
+                               "That was the last element in the "
+                               "target sequence, so now we have " (fixed "(nil S)") " and " (fixed "(nil T)") ".  "))
                (loginset
-                (nth logs 126)
-                (side-caption "Now we have " (fixed "(nil S)") " and " (fixed "(nil T)") ", "
-                              "and both stacks will be empty, so we are done!")))))))
+                (nth logs 200)
+                (side-caption  "Pop out of the " (fixed "(-> ...)") "."))
+               (loginset
+                (nth logs 203)
+                (side-caption "Pop out of the target defn body.  "
+                              "Now that we have popped all the way out of both forms, "
+                              "both stacks are empty and there are no more forms to diff,  so we are done!"))))
+    (dom/div
+      {:className "textcontainer"
+       :style {:margin "auto"}
+       :id "alignment"}
+      (section
+        "Alignment"
+        (p "I had originally implemented the diff algorithm as A*, which was a lot better at finding diffs with fewer explored states.  "
+           "What made me decide to switch to plain Dijkstra's algorithm was the problem of alignment.  When multiple forms in a file "
+           "are changed, inserted, renamed or deleted, how do you figure out which pairs to diff?"
+           "A* works great when you know both the source and the target forms, but this proved difficult in practice.  ")
+        (p "My first idea was to simply diff the entire source file with the entire target file, basically treating each file "
+           "as if it had [] surrounding the entire thing.  This led to a lot of weird diffs; for example when you deleted "
+           "something and inserted something else in its place, the diff would show how to transform the deleted thing "
+           "into the new thing, which was confusing.  "
+           "Top-level forms are the basic unit of clojure code, so diffs which span them are unnatural and hard to read.  "
+           "When the change-of-nesting support was implemented, things really got out of hand.")
+        (p "Something had to be done.  My next idea was to basically hack it by trying to match forms by their top-level text, "
+           "for example 'defn somefn' or 'defmethod foo :dval'.  This has a lot of obvious problems, including docstrings, but "
+           "especially renames.  It worked better than I expected but the problem was still not solved.")
+        (p "The solution I came up with is to diff each target form in the old file against " (dom/i {} "all") " forms in the new file.  "
+           "This is done by adding N start states to the priority queue, instead of only one, where N is the number of candidate target forms. "
+           "Since A* really only makes sense in the context of single-source shortest paths, I decided to just switch to Dijkstra's algorithm,  "
+           "which can deal just fine with multiple origins.  Since the diffs are processed in order of increasing cost, we know that "
+           "the first complete diff we see will be the lowest-cost-possible diff of the source form with any of the target forms.  "
+           "So we trade away single-target diff performance, but in return we get the guaranteed optimal solution to the alignment problem. ")
+        (p "Doing diffs this way is technically quadratic, since in the worst case it requires every source form to be diffed against every "
+           "target form, but there are a couple tricks that can be used to make it more palatable.  "
+           "Most of the time, the majority of the forms in a file will be unchanged, so we can just hash everything first and match those "
+           "right away.  That means the runtime is only quadratic with respect to the number of changed forms, which is better.  "
+           "Second, each target form can only be matched to one source form, so we if we have to diff the first source against N targets, "
+           "we only need to diff the second against N-1, and so on.  Still quadratic but oh well, parsing is usually slower anyway.  "
+           "Finally, in each list of candidate targets we always include nil, representing the cost of deleting the entire source form.  "
+           "This means no states more expensive than that are considered, which kind of controls the number of states we need to explore.")
+        (p "There are a couple of slow cases, but for the most part I think the gains are worth the switch to Dijkstra.  "
+           "Probably the slowest type of change to diff is splitting a very large form into two or more smaller forms, since we will spend "
+           "a huge amount of time trying to figure out which smaller form is most similar to the original large form.  For example, "
+           "If you split a 100-line function into two pieces and also make a bunch of changes, it might take like 30 seconds to diff.  "
+           "That's not great, but you'll probably spend more than 30 seconds looking at a diff like that anyway."))))))
 
 (clojure.core/comment
-  (gen-readme))
+  (gen-readme)
+  (difflog/write-difflog "difflog" (first example1) [(second example1)]))

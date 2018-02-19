@@ -106,12 +106,10 @@
       form-annotation? (dom/span {:className (str (name annotation))}))))
 
 (defn line-numbers
-  [{:keys [lines start-line linkbase] :as the-form}]
-  (for [i (range start-line (+ start-line lines))
-        :let [;; make up a unique id so the browser doesn't try to scroll
-              uid (str (.substring linkbase (- (count linkbase) 5)) i)]]
+  [{:keys [lines start-line linkbase] :as the-form :or {linkbase "hahaha"}}]
+  (for [i (range start-line (+ start-line lines))]
     (cond->> (dom/div {} (str i))
-      linkbase (dom/a {:href (str linkbase i)}))))
+             linkbase (dom/a {:href (str linkbase i)}))))
 
 (defcomponent code
   [{:keys [lines start-line linkbase things annotation id] :as the-form} children]

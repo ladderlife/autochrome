@@ -1,17 +1,16 @@
 (ns autochrome.page
   (:require [autochrome.annotation :as annotation]
+            [autochrome.align :as align]
             [autochrome.common :as clj-common]
             [autochrome.components :as comp]
-            [autochrome.diff :as diff]
             [autochrome.github :as github]
             [autochrome.parse :as parse]
             [autochrome.styles :as styles]
-            [clojure.string :as string]
+            [com.climate.claypoole :as cp]
             [hiccup.page :as hp]
             [om.dom :as dom])
   (:import [java.security MessageDigest]
-           [javax.xml.bind DatatypeConverter]
-           [java.util IdentityHashMap]))
+           [javax.xml.bind DatatypeConverter]))
 
 (defn clojure-file?
   [s]
@@ -79,71 +78,19 @@
         (assoc :linkbase linkbase)
         render-top-level-form)))
 
-(defn top-level-text
-  [{:keys [contents]}]
-  (string/join
-   " "
-   (keep identity
-         (for [f contents]
-           (case (:type f)
-             :quote (parse/render f)
-             (:keyword :symbol) (:text f)
-             nil)))))
-
 (defn two-file-diff
   [linkbase old new]
-  (let [aforms (:contents (:root old))
-        bforms (:contents (:root new))
-        adefs (group-by top-level-text aforms)
-        bdefs (group-by top-level-text bforms)
-        common? (set (filter #(= 1 (count (adefs %)) (count (bdefs %))) (keys bdefs)))
-        matched-pairs
-        (for [b bforms
-              :when (common? (top-level-text b))
-              :let [matched (first (get adefs (top-level-text b)))]]
-          {:line (:start-line b)
-           :forms [matched b]})
-        unmatched-pairs
-        (loop [result []
-               [a :as as] aforms
-               [b :as bs] bforms]
-          (cond
-            (and (empty? as) (empty? bs))
-            result
-
-            (common? (top-level-text a))
-            (recur result (next as) bs)
-
-            (common? (top-level-text b))
-            (recur result as (next bs))
-
-            :else
-            (recur
-             (conj result {:line (or (:start-line b) (:start-line a))
-                           :forms [a b]})
-             (next as)
-             (next bs))))
-        ann2
-        (fn [a b]
-          (cond
-            (nil? a) (doto (IdentityHashMap.) (.put b :added))
-            (nil? b) (doto (IdentityHashMap.) (.put a :deleted))
-            :else (diff/diff-forms a b)))
-        diff2
-        (fn [a b]
-          (let [ann (ann2 a b)]
-            (when-not (.isEmpty ann)
-              (comp/panes
-               {}
-               (some->> a list (diff-pane (str linkbase (md5sum (:path old)) "L") ann))
-               (some->> b list (diff-pane (str linkbase (md5sum (:path new)) "R") ann))))))]
-    (->> (concat matched-pairs unmatched-pairs)
-         (sort-by :line)
-         (keep
-          (fn [{[a b] :forms}]
-            (let [empty-form {:type :root :contents []}]
-              (diff2 a b))))
-         (interpose (comp/spacer)))))
+  (->> (align/get-diffs (:contents (:root old)) (:contents (:root new)))
+       (sort-by
+         (fn [[s t _]]
+           (or (:start-line t) (:start-line s))))
+       (map
+         (fn [[s t ann]]
+           (comp/panes
+             {}
+             (some->> s list (diff-pane (str linkbase (md5sum (:path old)) "L") ann))
+             (some->> t list (diff-pane (str linkbase (md5sum (:path new)) "R") ann)))))
+       (interpose (comp/spacer))))
 
 (defn delete-everything
   [root]
@@ -155,7 +102,7 @@
   (comp/root {} (diff-pane (str linkbase (md5sum path) lr) {} (:contents root))))
 
 (defn patch-heading
-  [{:keys [old-path old-text new-path new-text]}]
+  [{:keys [old-path new-path]}]
   (comp/heading
    (cond
      (= old-path "/dev/null") (str new-path " (new file)")
@@ -164,7 +111,7 @@
      :else new-path)))
 
 (defn clojure-diff
-  [linkbase {:keys [old-path old-text new-path new-text] :as patch}]
+  [linkbase {:keys [old-path old-text new-path new-text]}]
   (cond
     (= old-path "/dev/null")
     (one-file-diff linkbase new-path "R" (parse/parse new-text))
@@ -188,20 +135,25 @@
        (interpose "\n")
        (dom/pre {})))
 
+(def ^:dynamic *clojure-only* false)
+
 (defn diff-page
   [linkbase title changed-files]
   (println (count changed-files) "changed files")
   (->> changed-files
-       (mapcat
-        (fn [{:keys [old-path old-text new-path new-text] :as patch}]
-          [(patch-heading patch)
-           (if (or (clojure-file? new-path)
-                   (and (= "/dev/null" new-path)
-                        (clojure-file? old-path)))
-             (clojure-diff linkbase patch)
-             (raw-diff linkbase patch))
-           (comp/spacer)
-           (comp/spacer)]))
+       (cp/upmap
+         (cp/threadpool (cp/ncpus))
+         (fn [{:keys [old-path new-path] :as patch}]
+           (let [file-diff
+                 (if (or (clojure-file? new-path)
+                         (and (= "/dev/null" new-path)
+                              (clojure-file? old-path)))
+                   (clojure-diff linkbase patch)
+                   (when-not *clojure-only*
+                     (raw-diff linkbase patch)))]
+             (when file-diff
+               [(patch-heading patch) file-diff (comp/spacer) (comp/spacer)]))))
+       (apply concat)
        (comp/root {})
        (page title)))
 

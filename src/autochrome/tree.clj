@@ -48,8 +48,10 @@
                  (if (= :coll (:type form))
                    ;; empty collection
                    (.hashCode (:delim form))
-                   (throw (ex-info "unhashable" {:form form}))))
-               (let [parent-hash (volatile! 0)]
+                   (if (nil? form)
+                     0
+                     (throw (ex-info "unhashable" {:form form})))))
+               (let [parent-hash (volatile! 0x1a814d0)]
                  (loop [i 0
                         [c & cs] children]
                    (when c
