@@ -1,6 +1,6 @@
 (ns autochrome.page
-  (:require [autochrome.annotation :as annotation]
-            [autochrome.align :as align]
+  (:require [autochrome.align :as align]
+            [autochrome.annotation :as annotation]
             [autochrome.common :as clj-common]
             [autochrome.components :as comp]
             [autochrome.github :as github]
@@ -82,14 +82,14 @@
   [linkbase old new]
   (->> (align/get-diffs (:contents (:root old)) (:contents (:root new)))
        (sort-by
-         (fn [[s t _]]
-           (or (:start-line t) (:start-line s))))
+        (fn [[s t _]]
+          (or (:start-line t) (:start-line s))))
        (map
-         (fn [[s t ann]]
-           (comp/panes
-             {}
-             (some->> s list (diff-pane (str linkbase (md5sum (:path old)) "L") ann))
-             (some->> t list (diff-pane (str linkbase (md5sum (:path new)) "R") ann)))))
+        (fn [[s t ann]]
+          (comp/panes
+           {}
+           (some->> s list (diff-pane (str linkbase (md5sum (:path old)) "L") ann))
+           (some->> t list (diff-pane (str linkbase (md5sum (:path new)) "R") ann)))))
        (interpose (comp/spacer))))
 
 (defn delete-everything
@@ -142,17 +142,17 @@
   (println (count changed-files) "changed files")
   (->> changed-files
        (cp/upmap
-         (cp/threadpool (cp/ncpus))
-         (fn [{:keys [old-path new-path] :as patch}]
-           (let [file-diff
-                 (if (or (clojure-file? new-path)
-                         (and (= "/dev/null" new-path)
-                              (clojure-file? old-path)))
-                   (clojure-diff linkbase patch)
-                   (when-not *clojure-only*
-                     (raw-diff linkbase patch)))]
-             (when file-diff
-               [(patch-heading patch) file-diff (comp/spacer) (comp/spacer)]))))
+        (cp/threadpool (cp/ncpus))
+        (fn [{:keys [old-path new-path] :as patch}]
+          (let [file-diff
+                (if (or (clojure-file? new-path)
+                        (and (= "/dev/null" new-path)
+                             (clojure-file? old-path)))
+                  (clojure-diff linkbase patch)
+                  (when-not *clojure-only*
+                    (raw-diff linkbase patch)))]
+            (when file-diff
+              [(patch-heading patch) file-diff (comp/spacer) (comp/spacer)]))))
        (apply concat)
        (comp/root {})
        (page title)))

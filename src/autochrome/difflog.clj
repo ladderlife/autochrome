@@ -12,10 +12,10 @@
    {}
    (when a
      (page/render-top-level-form
-       (ann/attach a (doto (ann/syntax-highlighting a) (.putAll ann)))))
+      (ann/attach a (doto (ann/syntax-highlighting a) (.putAll ann)))))
    (when b
      (page/render-top-level-form
-       (ann/attach b (doto (ann/syntax-highlighting b) (.putAll ann)))))))
+      (ann/attach b (doto (ann/syntax-highlighting b) (.putAll ann)))))))
 
 (defn diff-log
   [aroot broots]
@@ -55,16 +55,15 @@
           (.-origtarget c))
          #_(comp/spacer))))))
 
-
 (defn write-difflog
   [title astr bstrs]
   (let [a (parse/parse-one astr)
         bs (map parse/parse-one bstrs)]
     (spit (str title ".html")
           (page/page
-            title
-            (comp/root {}
-                       (diff-log a bs))))))
+           title
+           (comp/root {}
+                      (diff-log a bs))))))
 
 (comment
   (write-difflog

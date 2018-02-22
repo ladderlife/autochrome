@@ -104,7 +104,7 @@
 (defn reverse-apply-patches
   [new-text patches]
   (if-not new-text
-    (string/join "\n" (conj (map :old patches) ""))
+    (string/join "\n" (conj (mapcat :old patches) ""))
     (let [lines (.split new-text "\n")
           line->patch (into {} (map (juxt (comp :new-start :hunk) identity) patches))
           sb (StringBuilder.)]
@@ -149,7 +149,7 @@
            ;; [mode type sha path]
            sha  (aget sp 2)
            path (aget sp 3)]
-       (cond-> m (.contains path ".clj") (assoc path sha))))
+       (assoc m path sha)))
    {}
    (-> (sh/sh "git" "ls-tree" "-r" rev :dir *git-dir*)
        :out
@@ -168,7 +168,7 @@
      (for [[new-path patches] (group-by :new-path hunks)
            :when (not= "/dev/null" new-path)]
        (let [new-path (:new-path (first patches))
-             new-text @(new-path->text new-path)
+             new-text (deref (new-path->text new-path))
              old-path (:old-path (first patches))
              old-text (reverse-apply-patches new-text patches)]
          (cond-> {:new-path new-path :new-text new-text
@@ -206,5 +206,3 @@
      rawdiff
      #(when-let [sha (get new-tree %)]
         (slurp-blob-from-local-git sha)))))
-
-

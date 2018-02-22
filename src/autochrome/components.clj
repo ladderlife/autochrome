@@ -1,9 +1,8 @@
 (ns autochrome.components
   (:require [autochrome.common :as clj-common :refer [special-form? open->closed]]
             [autochrome.xref :as xref]
+            [autochrome.parse :as parse]
             [om.dom :as dom :refer [span]]))
-
-(declare form)
 
 (defmacro defcomponent
   [name & [[props children] & body]]
@@ -45,7 +44,19 @@
       (symbol? a) (dom/span {:className "var-ref"} text)
       :else (throw (ex-info "unrecognized annotation" the-form)))))
 
-(declare form)
+(defn meta-class
+  [mf]
+  (let [[c & more] (:contents mf)]
+    (cond
+      more "meta"
+
+      (= (:type c) :symbol)
+      (if (some-> c :text first Character/isUpperCase)
+        "java-class"
+        "var-ref")
+
+      (= (:type c) :keyword) "meta-keyword"
+      :else "meta")))
 
 (defcomponent form
   [{:keys [type text annotation] :as the-form} _]
@@ -69,10 +80,14 @@
           :char-literal (span {:className "string"} text)
           :quote        (span {} "'" (form (first (:val the-form))))
           :var-quote    (span {:className "var-ref"} "#'" text)
-          ;; TODO hash-under
+
           (:deref :syntax-quote :unquote :unquote-splicing)
           (span {} (clj-common/->decorator the-form)
                 (mapv form (:wscontents the-form)))
+
+          :hash-under
+          (span {:className "comment"}
+                (parse/render-dup the-form))
 
           :coll
           (let [left (str (:delim the-form))
@@ -99,7 +114,8 @@
           (span {} "#?@(" (mapv form (:wscontents the-form)) ")")
 
           :meta
-          (span {:className "meta"} "^" (mapv form (:wscontents the-form)))
+          (span {:className (meta-class the-form)}
+                "^" (mapv form (:wscontents the-form)))
 
           (span {:className "unparsed"} (pr-str the-form)))]
     (cond->> rendered
@@ -109,7 +125,7 @@
   [{:keys [lines start-line linkbase] :as the-form :or {linkbase "hahaha"}}]
   (for [i (range start-line (+ start-line lines))]
     (cond->> (dom/div {} (str i))
-             linkbase (dom/a {:href (str linkbase i)}))))
+      linkbase (dom/a {:href (str linkbase i)}))))
 
 (defcomponent code
   [{:keys [lines start-line linkbase things annotation id] :as the-form} children]

@@ -73,8 +73,8 @@
 
 (defn dforms
   ([source targets]
-    (let [{:keys [hashes sizes]} (diff-prep [source] targets)]
-      (dforms source targets hashes sizes)))
+   (let [{:keys [hashes sizes]} (diff-prep [source] targets)]
+     (dforms source targets hashes sizes)))
   ([source targets ^IdentityHashMap hashes ^IdentityHashMap sizes]
    (let [real-cost (HashMap.)
          pq (PriorityQueue.)

@@ -109,10 +109,15 @@
   [[argv & body] func ^Context ctx]
   (walk-body body func (+bindings argv func ctx)))
 
+(defn without-meta
+  "gross hack so we don't get destroyed by (def ^:dynamic foo ...)"
+  [cts]
+  (filter #(not= :meta (:type %)) cts))
+
 (defn walk-bindings*
   "each binding in a let is in scope for subsequent bindings"
   [bvec body func ^Context context]
-  (loop [[b & bs] (partition 2 (:contents bvec))
+  (loop [[b & bs] (partition 2 (without-meta (:contents bvec)))
          ctx      context]
     (if (nil? b)
       (walk-body body func ctx)
@@ -130,7 +135,7 @@
 ;;; can contain dependencies as well as the right
 (defn walk-literal-binding-form
   [bvec body func ^Context context]
-  (loop [[b & bs] (partition 2 (:contents bvec))
+  (loop [[b & bs] (partition 2 (without-meta (:contents bvec)))
          ctx      context]
     (if (nil? b)
       (walk-body body func ctx)
@@ -289,10 +294,7 @@
       ;; TODO proxy
 
       (if-let [tlw (top-level-walker-fn dispatch-form)]
-        (tlw
-         ;; gross hack so we don't get destroyed by (def ^:dynamic foo ...)
-         (assoc form :contents (filter #(not= :meta (:type %)) (:contents form)))
-         func ctx)
+        (tlw (update form :contents without-meta) func ctx)
         (walk-body params func ctx)))))
 
 (defn walk-with-scope
