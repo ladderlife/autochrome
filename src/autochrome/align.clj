@@ -1,7 +1,5 @@
 (ns autochrome.align
-  (:require [autochrome.diff :as diff]
-            [autochrome.tree :as tree]
-            [autochrome.parse :as parse])
+  (:require [autochrome.diff :as diff])
   (:import [java.util IdentityHashMap Map]))
 
 (defn get-diffs
@@ -39,11 +37,8 @@
         :else
         (let [goal (diff/dforms the-source (cons nil targets) hashes sizes)
               the-target (diff/get-target goal)]
-          ;(println 'goal-cost (diff/get-cost goal) 'nstates (count @diff/explored-states) 'npopped @diff/npopped)
-          ;(println 'source (parse/render the-source))
-          ;(println 'target (parse/render the-target))
           (.put matched-forms the-target :matched)
           (recur
-            (conj diffs [the-source the-target (diff/diffstate->annotations goal)])
-            sources
-            (filter unmatched? targets)))))))
+           (conj diffs [the-source the-target (diff/diffstate->annotations goal)])
+           sources
+           (filter unmatched? targets)))))))

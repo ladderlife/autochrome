@@ -61,7 +61,13 @@
           (recur (assoc! ctx :pos (+ pos (.length whitespace)))
                  (conj! tokens {:type :ws :text whitespace})))
 
-        (\( \) \{ \} \[ \] \` \~ \# \^ \')
+        \# (let [nt (.charAt buf (inc pos))]
+             (if (= \_ nt)
+               (recur (assoc! ctx :pos (+ 2 pos)) (conj! tokens "#_"))
+               (recur (assoc! ctx :pos (inc pos))
+                      (conj! tokens (.charAt buf pos)))))
+
+        (\( \) \{ \} \[ \] \` \~ \^ \')
         (recur (assoc! ctx :pos (inc pos))
                (conj! tokens (.charAt buf pos)))
 
@@ -144,12 +150,48 @@
                 (assoc :contents [t]))
        :rest more})))
 
+(defn collect-hash-unders
+  [ts]
+  (loop [n 0
+         hashes []
+         [t & more :as ts] ts]
+    (cond
+      (= t "#_") (recur (inc n) (conj hashes t) more)
+      (= :ws (:type t)) (recur n (conj hashes (:text t)) more)
+      :else {:hashes hashes :n n :rest ts })))
+
+(defn next-n-forms
+  [n ts]
+  (loop [n n
+         forms []
+         ts ts]
+    (cond
+      (or (zero? n) (empty? ts)) {:forms forms :rest ts}
+      :else
+      (let [{:keys [val rest]} (-parse-one ts)]
+        (recur
+         (if (not= :ws (:type val)) (dec n) n)
+         (conj forms val) rest)))))
+
 (defn ignore-whitespace
   [ts]
   (loop [ts ts]
     (if-not (= :ws (:type (first ts)))
       ts
       (recur (next ts)))))
+
+;; :contents needs to be a list, due to object identity shenanigans in DiffContext
+(defn vec->list
+  [v]
+  (loop [head nil
+         idx (dec (count v))]
+    (if (< idx 0)
+      head
+      (recur (cons (nth v idx) head) (dec idx)))))
+
+(defn nows
+  [forms]
+  (vec->list (filterv #(not= :ws (:type %)) forms)))
 
 (defn -parse-one
   [ts]
@@ -170,10 +212,6 @@
             \' (let [{:keys [val rest]} (-parse-one (next ts))]
                  {:val {:type :var-quote :text (:text val)} :rest rest})
 
-            {:type :symbol :text "_"}
-            (let [{:keys [val rest]} (-parse-one (next ts))]
-              {:val [] :rest rest})
-
             ;; reader conditional
             {:type :symbol :text "?"}
             (let [{:keys [val rest]} (-parse-one (ignore-whitespace (next ts)))]
@@ -188,22 +226,20 @@
               (let [{:keys [val rest]} (-parse-one ts)]
                 {:val {:type :regex :text (:text val)} :rest rest})
               :symbol
-              ;; HACK lexer doesn't doesn't handle some cases very well
               (let [{:keys [val rest]} (-parse-one ts)]
-                (if (string/starts-with? (:text nt) "_")
-                  (cond
-                    (contains? #{"_#_" "_#_#"} (:text nt))
-                    {:val [] :rest (:rest (-parse-one (:rest (-parse-one (next ts)))))}
+                (parse-decoration
+                 {:type :data-reader :text (:text nt)}
+                 (next ts)))
+              (throw (ex-info "bad dispatch form" {:bad-token nt})))))
 
-                    (string/starts-with? (:text nt) "_#_")
-                    {:val [] :rest (:rest (-parse-one (next ts)))}
-
-                    :else
-                    {:val [] :rest (:rest (-parse-one ts))})
-
-                  (parse-decoration {:type :data-reader
-                                     :text (:text nt)}
-                                    (next ts)))))))
+        "#_"
+        (let [{:keys [n hashes rest]} (collect-hash-unders ts)
+              {:keys [forms rest]} (next-n-forms n rest)]
+          {:val {:type :hash-under
+                 :hashes hashes
+                 :wscontents forms
+                 :contents (nows forms)}
+           :rest rest})
 
         \^ (parse-decoration {:type :meta} (next ts))
         \@ (parse-decoration {:type :deref} (next ts))
@@ -224,19 +260,6 @@
           (when-let [nlines (:nlines t)]
             (swap! *line-number* + nlines))
           {:val t :rest (next ts)})))))
-
-;; :contents needs to be list, due to object identity shenanigans in DiffContext
-(defn vec->list
-  [v]
-  (loop [head nil
-         idx (dec (count v))]
-    (if (< idx 0)
-      head
-      (recur (cons (nth v idx) head) (dec idx)))))
-
-(defn nows
-  [forms]
-  (vec->list (filterv #(not= :ws (:type %)) forms)))
 
 (defn parse-list
   [closer ots]
@@ -296,11 +319,19 @@
   [s]
   (-> s parse :contents first))
 
-(defn render
-  [t]
+(declare render*)
+
+(defn render-contents
+  [the-form ->cts]
+  (let [rendered (for [f (->cts the-form)] (render* f ->cts))]
+    (apply str (if (= :contents ->cts)
+                 (interpose " " rendered)
+                 rendered))))
+
+(defn render*
+  [t ->cts]
   (cond
-    (sequential? t) (apply str (map render t))
-    (:meta t) (apply str "^" (render (:meta t)) " " (render (dissoc t :meta)))
+    (sequential? t) (apply str (for [f (->cts t)] (render* f ->cts)))
     (string? t) t
     :else
     (case (:type t)
@@ -308,30 +339,33 @@
       :data-reader (str "#" (:text t))
       :regex (str "#" (:text t))
       :char-literal (:text t)
-      :meta (str "^" (render (:val t)))
-      :quote (str "'" (render (:val t)))
-      :syntax-quote (str "`" (render (first (:contents t))))
-      :unquote (str "~" (render (first (:contents t))))
-      :deref (str "@" (render (first (:contents t))))
+      :meta (apply str "^" (for [f (->cts t)] (render* f ->cts)))
+      :quote (str "'" (render* (:val t) ->cts))
+      :syntax-quote (apply str "`" (for [f (->cts t)] (render* f ->cts)))
+      :unquote (apply str "~" (for [f (->cts t)] (render* f ->cts)))
+      :deref (apply str "@" (for [f (->cts t)] (render* f ->cts)))
       :var-quote (str "#'" (:text t))
-      :hash-under (str "#_" (render (:text t)))
+      :hash-under (str (string/join (:hashes t))
+                       (render-contents t ->cts))
 
       :coll
       (str (:delim t)
-           (let [contents (:contents t)]
-             (->>
-              contents
-              (map-indexed (fn [i elem]
-                             (cond
-                               (contains? #{\` \~ \@} elem) (render elem)
-                               (= i (dec (count contents))) (render elem)
-                               :else (str (render elem) " "))))
-              (apply str)))
+           (render-contents t ->cts)
            (open->closed (:delim t)))
 
-      :lambda  (str "#" (render (:text t)))
-      :root (apply str (mapv render (:contents t)))
+      :lambda  (str "#" (render* (:text t) ->cts))
+      :root (apply str
+                   (for [f (->cts t)]
+                             (render* f ->cts)))
 
       (case t
         (\` \~ \@) t
         (pr-str t)))))
+
+(defn render
+  [t]
+  (render* t :contents))
+
+(defn render-dup
+  [t]
+  (render* t :wscontents))
