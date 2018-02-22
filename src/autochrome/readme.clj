@@ -37,7 +37,7 @@
              :padding      "10px"
              :display      "flex"
              ;:margin "10px auto"
-}]
+             }]
    [:.examplesection {:font-size "16px"
                       :width "70%"
                       :margin "auto"}]
@@ -71,15 +71,15 @@
   [log & more]
   (inset log)
   (dom/div
-   {:style {:margin-bottom "40px"}
-    :className "insetcontainer"}
-   (dom/div
-    {:style [["min-width" "fit-content"]
-             ["min-width" "-moz-fit-content"]]
-     :className "inset"}
-    log)
-   (dom/div {})
-   (dom/div {:className "logside"} more)))
+    {:style {:margin-bottom "40px"}
+     :className "insetcontainer"}
+    (dom/div
+      {:style [["min-width" "fit-content"]
+               ["min-width" "-moz-fit-content"]]
+       :className "inset"}
+      log)
+    (dom/div {})
+    (dom/div {:className "logside"} more)))
 
 (defn term
   [& children]
@@ -97,8 +97,8 @@
                     :height "100%"
                     :flex-direction "column"
                     :justify-content "center"}}
-           (dom/div {})
-           (dom/div {:className "caption"} body)))
+    (dom/div {})
+    (dom/div {:className "caption"} body)))
 
 (defn code-inset
   [text]
@@ -360,10 +360,10 @@
                               "This is an example of how movement operations get processed before any additions/deletions.  "
                               "It's completely free to explore here, so we might as well!"))
                (loginset
-                (nth logs 197)
-                (side-caption "Add " (fixed "(assoc :twice (+ x x))") ".  Another costly change means another big gap in state number.  "
-                              "That was the last element in the "
-                              "target sequence, so now we have " (fixed "(nil S)") " and " (fixed "(nil T)") ".  "))
+                 (nth logs 197)
+                 (side-caption "Add " (fixed "(assoc :twice (+ x x))") ".  Another costly change means another big gap in state number.  "
+                               "That was the last element in the "
+                               "target sequence, so now we have " (fixed "(nil S)") " and " (fixed "(nil T)") ".  "))
                (loginset
                 (nth logs 200)
                 (side-caption  "Pop out of the " (fixed "(-> ...)") "."))
@@ -373,43 +373,43 @@
                               "Now that we have popped all the way out of both forms, "
                               "both stacks are empty and there are no more forms to diff,  so we are done!"))))
     (dom/div
-     {:className "textcontainer"
-      :style {:margin "auto"}
-      :id "alignment"}
-     (section
-      "Alignment"
-      (p "I had originally implemented the diff algorithm as A*, which was a lot better at finding diffs with fewer explored states.  "
-         "What made me decide to switch to plain Dijkstra's algorithm was the problem of alignment.  When multiple forms in a file "
-         "are changed, inserted, renamed or deleted, how do you figure out which pairs to diff?"
-         "A* works great when you know both the source and the target forms, but this proved difficult in practice.  ")
-      (p "My first idea was to simply diff the entire source file with the entire target file, basically treating each file "
-         "as if it had [] surrounding the entire thing.  This led to a lot of weird diffs; for example when you deleted "
-         "something and inserted something else in its place, the diff would show how to transform the deleted thing "
-         "into the new thing, which was confusing.  "
-         "Top-level forms are the basic unit of clojure code, so diffs which span them are unnatural and hard to read.  "
-         "When the change-of-nesting support was implemented, things really got out of hand.")
-      (p "Something had to be done.  My next idea was to basically hack it by trying to match forms by their top-level text, "
-         "for example 'defn somefn' or 'defmethod foo :dval'.  This has a lot of obvious problems, including docstrings, but "
-         "especially renames.  It worked better than I expected but the problem was still not solved.")
-      (p "The solution I came up with is to diff each target form in the old file against " (dom/i {} "all") " forms in the new file.  "
-         "This is done by adding N start states to the priority queue, instead of only one, where N is the number of candidate target forms. "
-         "Since A* really only makes sense in the context of single-source shortest paths, I decided to just switch to Dijkstra's algorithm,  "
-         "which can deal just fine with multiple origins.  Since the diffs are processed in order of increasing cost, we know that "
-         "the first complete diff we see will be the lowest-cost-possible diff of the source form with any of the target forms.  "
-         "So we trade away single-target diff performance, but in return we get the guaranteed optimal solution to the alignment problem. ")
-      (p "Doing diffs this way is technically quadratic, since in the worst case it requires every source form to be diffed against every "
-         "target form, but there are a couple tricks that can be used to make it more palatable.  "
-         "Most of the time, the majority of the forms in a file will be unchanged, so we can just hash everything first and match those "
-         "right away.  That means the runtime is only quadratic with respect to the number of changed forms, which is better.  "
-         "Second, each target form can only be matched to one source form, so we if we have to diff the first source against N targets, "
-         "we only need to diff the second against N-1, and so on.  Still quadratic but oh well, parsing is usually slower anyway.  "
-         "Finally, in each list of candidate targets we always include nil, representing the cost of deleting the entire source form.  "
-         "This means no states more expensive than that are considered, which kind of controls the number of states we need to explore.")
-      (p "There are a couple of slow cases, but for the most part I think the gains are worth the switch to Dijkstra.  "
-         "Probably the slowest type of change to diff is splitting a very large form into two or more smaller forms, since we will spend "
-         "a huge amount of time trying to figure out which smaller form is most similar to the original large form.  For example, "
-         "If you split a 100-line function into two pieces and also make a bunch of changes, it might take like 30 seconds to diff.  "
-         "That's not great, but you'll probably spend more than 30 seconds looking at a diff like that anyway."))))))
+      {:className "textcontainer"
+       :style {:margin "auto"}
+       :id "alignment"}
+      (section
+        "Alignment"
+        (p "I had originally implemented the diff algorithm as A*, which was a lot better at finding diffs with fewer explored states.  "
+           "What made me decide to switch to plain Dijkstra's algorithm was the problem of alignment.  When multiple forms in a file "
+           "are changed, inserted, renamed or deleted, how do you figure out which pairs to diff?"
+           "A* works great when you know both the source and the target forms, but this proved difficult in practice.  ")
+        (p "My first idea was to simply diff the entire source file with the entire target file, basically treating each file "
+           "as if it had [] surrounding the entire thing.  This led to a lot of weird diffs; for example when you deleted "
+           "something and inserted something else in its place, the diff would show how to transform the deleted thing "
+           "into the new thing, which was confusing.  "
+           "Top-level forms are the basic unit of clojure code, so diffs which span them are unnatural and hard to read.  "
+           "When the change-of-nesting support was implemented, things really got out of hand.")
+        (p "Something had to be done.  My next idea was to basically hack it by trying to match forms by their top-level text, "
+           "for example 'defn somefn' or 'defmethod foo :dval'.  This has a lot of obvious problems, including docstrings, but "
+           "especially renames.  It worked better than I expected but the problem was still not solved.")
+        (p "The solution I came up with is to diff each target form in the old file against " (dom/i {} "all") " forms in the new file.  "
+           "This is done by adding N start states to the priority queue, instead of only one, where N is the number of candidate target forms. "
+           "Since A* really only makes sense in the context of single-source shortest paths, I decided to just switch to Dijkstra's algorithm,  "
+           "which can deal just fine with multiple origins.  Since the diffs are processed in order of increasing cost, we know that "
+           "the first complete diff we see will be the lowest-cost-possible diff of the source form with any of the target forms.  "
+           "So we trade away single-target diff performance, but in return we get the guaranteed optimal solution to the alignment problem. ")
+        (p "Doing diffs this way is technically quadratic, since in the worst case it requires every source form to be diffed against every "
+           "target form, but there are a couple tricks that can be used to make it more palatable.  "
+           "Most of the time, the majority of the forms in a file will be unchanged, so we can just hash everything first and match those "
+           "right away.  That means the runtime is only quadratic with respect to the number of changed forms, which is better.  "
+           "Second, each target form can only be matched to one source form, so we if we have to diff the first source against N targets, "
+           "we only need to diff the second against N-1, and so on.  Still quadratic but oh well, parsing is usually slower anyway.  "
+           "Finally, in each list of candidate targets we always include nil, representing the cost of deleting the entire source form.  "
+           "This means no states more expensive than that are considered, which kind of controls the number of states we need to explore.")
+        (p "There are a couple of slow cases, but for the most part I think the gains are worth the switch to Dijkstra.  "
+           "Probably the slowest type of change to diff is splitting a very large form into two or more smaller forms, since we will spend "
+           "a huge amount of time trying to figure out which smaller form is most similar to the original large form.  For example, "
+           "If you split a 100-line function into two pieces and also make a bunch of changes, it might take like 30 seconds to diff.  "
+           "That's not great, but you'll probably spend more than 30 seconds looking at a diff like that anyway."))))))
 
 (clojure.core/comment
   (gen-readme)
