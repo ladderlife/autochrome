@@ -63,12 +63,9 @@
 
         \# (let [nt (.charAt buf (inc pos))]
              (if (= \_ nt)
-               (recur (assoc! ctx :pos (+ 2 pos))
-                      #_(-> tokens (conj! (.charAt buf pos)) (conj! nt))
-                      (conj! tokens "#_"))
+               (recur (assoc! ctx :pos (+ 2 pos)) (conj! tokens "#_"))
                (recur (assoc! ctx :pos (inc pos))
                       (conj! tokens (.charAt buf pos)))))
-
 
         (\( \) \{ \} \[ \] \` \~ \^ \')
         (recur (assoc! ctx :pos (inc pos))
@@ -183,6 +180,15 @@
       ts
       (recur (next ts)))))
 
+;; :contents needs to be a list, due to object identity shenanigans in DiffContext
+(defn vec->list
+  [v]
+  (loop [head nil
+         idx (dec (count v))]
+    (if (< idx 0)
+      head
+      (recur (cons (nth v idx) head) (dec idx)))))
+
 (defn nows
   [forms]
   (vec->list (filterv #(not= :ws (:type %)) forms)))
@@ -255,15 +261,6 @@
             (swap! *line-number* + nlines))
           {:val t :rest (next ts)})))))
 
-;; :contents needs to be list, due to object identity shenanigans in DiffContext
-(defn vec->list
-  [v]
-  (loop [head nil
-         idx (dec (count v))]
-    (if (< idx 0)
-      head
-      (recur (cons (nth v idx) head) (dec idx)))))
-
 (defn parse-list
   [closer ots]
   (loop [forms []
@@ -334,7 +331,7 @@
 (defn render*
   [t ->cts]
   (cond
-    (sequential? t) (apply str (map render t))
+    (sequential? t) (apply str (for [f (->cts t)] (render* f ->cts)))
     (string? t) t
     :else
     (case (:type t)
@@ -342,11 +339,11 @@
       :data-reader (str "#" (:text t))
       :regex (str "#" (:text t))
       :char-literal (:text t)
-      :meta (apply str "^" (map render (->cts t)))
-      :quote (str "'" (render (:val t)))
-      :syntax-quote (apply str "`" (map render (->cts t)))
-      :unquote (apply str "~" (map render (->cts t)))
-      :deref (apply str "@" (map render (->cts t)))
+      :meta (apply str "^" (for [f (->cts t)] (render* f ->cts)))
+      :quote (str "'" (render* (:val t) ->cts))
+      :syntax-quote (apply str "`" (for [f (->cts t)] (render* f ->cts)))
+      :unquote (apply str "~" (for [f (->cts t)] (render* f ->cts)))
+      :deref (apply str "@" (for [f (->cts t)] (render* f ->cts)))
       :var-quote (str "#'" (:text t))
       :hash-under (str (string/join (:hashes t))
                        (render-contents t ->cts))
@@ -356,8 +353,10 @@
            (render-contents t ->cts)
            (open->closed (:delim t)))
 
-      :lambda  (str "#" (render (:text t)))
-      :root (apply str (mapv render (:contents t)))
+      :lambda  (str "#" (render* (:text t) ->cts))
+      :root (apply str
+                   (for [f (->cts t)]
+                             (render* f ->cts)))
 
       (case t
         (\` \~ \@) t
