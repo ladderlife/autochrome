@@ -121,10 +121,14 @@
                    (-> old-text parse/parse delete-everything))
 
     :else
-    (two-file-diff
-     linkbase
-     {:path old-path :root (parse/parse old-text)}
-     {:path new-path :root (parse/parse new-text)})))
+    (let [the-diff
+          (two-file-diff
+           linkbase
+           {:path old-path :root (parse/parse old-text)}
+           {:path new-path :root (parse/parse new-text)})]
+      (if-not (seq the-diff)
+        (dom/span {:className "comment"} ";; no code changes")
+        the-diff))))
 
 (defn raw-diff
   [linkbase {:keys [rawdiff]}]
@@ -175,3 +179,10 @@
    "local"
    (str a "..." b)
    (github/local-diff a b)))
+
+(defn local-diff-work-tree
+  [a]
+  (diff-page
+   "local"
+   (str a "... current")
+   (github/local-diff-work-tree a)))

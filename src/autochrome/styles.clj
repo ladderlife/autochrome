@@ -1,6 +1,5 @@
 (ns autochrome.styles
-  (:require [garden.core :refer [css]]
-            [garden.selectors :as gs]))
+  (:require [garden.core :refer [css]]))
 
 (def code-fonts
   "some nice programming fonts, ordered by how much I like them"

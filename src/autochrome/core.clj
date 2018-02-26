@@ -15,7 +15,7 @@
    [nil "--clojure-only" "only show clojure diffs"]
    [nil "--git-dir PATH" "path to the git repo"]])
 
-(defn -main
+(defn do-main
   [& args]
   (let [{:keys [options arguments]} (cli/parse-opts args cli-options)
         [a b c] arguments
@@ -24,7 +24,8 @@
                            github/*git-dir* (or (:git-dir options) ".")]
                    (cond
                      c (page/pull-request-diff a b (Integer/parseInt c))
-                     b (page/local-diff a b)))
+                     b (page/local-diff a b)
+                     a (page/local-diff-work-tree a)))
         output-file (if (:output options)
                       (io/file (:output options))
                       (File/createTempFile "diff" ".html"))]
@@ -36,5 +37,9 @@
       (.browse (Desktop/getDesktop)
                (.toURI output-file))
       (when-not (:output options)
-        (io/copy output-file *out*))))
+        (io/copy output-file *out*)))))
+
+(defn -main
+  [& args]
+  (apply do-main args)
   (shutdown-agents))

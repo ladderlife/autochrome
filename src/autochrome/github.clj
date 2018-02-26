@@ -1,5 +1,6 @@
 (ns autochrome.github
   (:require [clj-http.client :as http]
+            [clojure.java.io :as io]
             [clojure.java.shell :as sh]
             [clojure.string :as string]))
 
@@ -206,3 +207,9 @@
      rawdiff
      #(when-let [sha (get new-tree %)]
         (slurp-blob-from-local-git sha)))))
+
+(defn local-diff-work-tree
+  [oldref]
+  (let [rawdiff (:out (sh/sh "git" "diff" oldref :dir *git-dir*))
+        basedir (io/file *git-dir*)]
+    (->changed-files rawdiff #(slurp (io/file basedir %)))))

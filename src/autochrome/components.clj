@@ -1,7 +1,7 @@
 (ns autochrome.components
   (:require [autochrome.common :as clj-common :refer [special-form? open->closed]]
-            [autochrome.xref :as xref]
             [autochrome.parse :as parse]
+            [autochrome.xref :as xref]
             [om.dom :as dom :refer [span]]))
 
 (defmacro defcomponent
