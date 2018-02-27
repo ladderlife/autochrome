@@ -51,7 +51,7 @@
                    (if (nil? form)
                      0
                      (throw (ex-info "unhashable" {:form form})))))
-               (let [parent-hash (volatile! 0x1a814d0)]
+               (let [parent-hash (volatile! (Util/hashCombine 0x1a814d0 (hash (:delim form))))]
                  (loop [i 0
                         [c & cs] children]
                    (when c
