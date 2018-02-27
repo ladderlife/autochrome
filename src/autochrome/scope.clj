@@ -235,17 +235,6 @@
   [{[_ name & more] :contents} func ^Context ctx]
   (walk-body more func ctx))
 
-(defn walk-om-defui-form
-  [{[_ name & body] :contents :as form} func ^Context ctx]
-  (let [forms-by-type (group-by :type body)]
-    #_(when (> (count forms-by-type) 2)
-        (throw (ex-info "I do not like your defui" {:types (keys forms-by-type)})))
-    (doseq [proto (forms-by-type :symbol)
-            :when (not (contains? #{"static" "Object"} (:text proto)))]
-      (walk-with-scope proto func ctx))
-    (doseq [impl (forms-by-type :coll)]
-      (walk-fnspec (next (:contents impl)) func ctx))))
-
 (def ^:const reader-lambda-scope
   (into {} (map #(vector (symbol (str "%" %)) :implicit)
                 (list* "" "&" (range 1 10)))))
