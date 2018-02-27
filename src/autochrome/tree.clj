@@ -44,14 +44,15 @@
   (let [children (->children form)
         size (if-not children
                (if-let [t (:text form)]
-                 (.hashCode t)
+                 (Util/hashCombine (.hashCode t) (.hashCode (:type form)))
                  (if (= :coll (:type form))
                    ;; empty collection
                    (.hashCode (:delim form))
                    (if (nil? form)
                      0
                      (throw (ex-info "unhashable" {:form form})))))
-               (let [parent-hash (volatile! (Util/hashCombine 0x1a814d0 (hash (:delim form))))]
+               (let [type-hash (Util/hashCombine (.hashCode (:type form)) (hash (:delim form)))
+                     parent-hash (volatile! (Util/hashCombine 0x1a814d0 type-hash))]
                  (loop [i 0
                         [c & cs] children]
                    (when c
