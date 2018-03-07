@@ -23,6 +23,7 @@
       (= type :syntax-quote)
       (= type :unquote)
       (= type :unquote-splicing)
+      (= type :data-reader)
       (= type :meta)))
 
 (defn ->decorator

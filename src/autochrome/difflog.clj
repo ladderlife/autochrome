@@ -69,5 +69,5 @@
 (comment
   (write-difflog
    "difflog2"
-   "[:a :b :c]"
-   ["[:a :b :c :d :e]"]))
+   "#:: {:foo :bar}"
+   ["#::some-ns{:foo :bar}"]))

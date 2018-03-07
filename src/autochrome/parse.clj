@@ -131,24 +131,25 @@
 
 ;; 'decoration' precedes one form eg deref, quote, data reader etc.
 (defn parse-decoration
-  [base ts]
-  ;; collect leading whitespace
-  (loop [ws []
-         [t & more :as ts] ts]
-    (cond
-      (= :ws (:type t))
-      (recur (conj ws t) more)
+  ([base ts] (parse-decoration base ts []))
+  ([base ts init]
+    ;; collect leading whitespace
+   (loop [ws init
+          [t & more :as ts] ts]
+     (cond
+       (= :ws (:type t))
+       (recur (conj ws t) more)
 
-      (char? t)
-      (let [{:keys [val rest]} (-parse-one ts)]
-        {:val (-> (assoc base :wscontents (conj ws val))
-                  (assoc :contents [val]))
-         :rest rest})
+       (char? t)
+       (let [{:keys [val rest]} (-parse-one ts)]
+         {:val (-> (assoc base :wscontents (conj ws val))
+                   (assoc :contents (conj init val)))
+          :rest rest})
 
-      (map? t)
-      {:val (-> (assoc base :wscontents (conj ws t))
-                (assoc :contents [t]))
-       :rest more})))
+       (map? t)
+       {:val (-> (assoc base :wscontents (conj ws t))
+                 (assoc :contents (conj init val)))
+        :rest more}))))
 
 (defn collect-hash-unders
   [ts]
@@ -225,11 +226,8 @@
               :string
               (let [{:keys [val rest]} (-parse-one ts)]
                 {:val {:type :regex :text (:text val)} :rest rest})
-              :symbol
-              (let [{:keys [val rest]} (-parse-one ts)]
-                (parse-decoration
-                 {:type :data-reader :text (:text nt)}
-                 (next ts)))
+              (:symbol :keyword)
+              (parse-decoration {:type :data-reader} (next ts) [nt])
               (throw (ex-info "bad dispatch form" {:bad-token nt})))))
 
         "#_"
