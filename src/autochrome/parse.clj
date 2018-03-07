@@ -148,7 +148,7 @@
 
        (map? t)
        {:val (-> (assoc base :wscontents (conj ws t))
-                 (assoc :contents (conj init val)))
+                 (assoc :contents (conj init t)))
         :rest more}))))
 
 (defn collect-hash-unders
