@@ -83,9 +83,11 @@
              ":strs" (map :text (:contents binding-val))
              ":as"   (list (:text binding-val))
              ":or"   (walk-body (take-nth 2 (rest (:contents binding-val))) func ctx)
-             (throw (ex-info (str "unsupported map destructuring (" (:text binding-key) ")")
-                             {:binding-form binding-form
-                              :rendered (parse/render binding-form)})))))
+             (if (.endsWith (:text binding-key) "/keys")
+               (map key->bound-sym (:contents binding-val))
+               (throw (ex-info (str "unsupported map destructuring (" (:text binding-key) ")")
+                              {:binding-form binding-form
+                               :rendered (parse/render binding-form)}))))))
        (partition 2 contents))
       ;; vector destructuring
       (and (= :coll type) (= \[ delim))
