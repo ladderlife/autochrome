@@ -9,9 +9,9 @@ github pull requests or local git repos. For more information, some examples, an
 ### From local git repo:
 ```
 $ lein run --open --git-dir /path/to/repo <old-ref> [<new-ref>]
-# old-ref and new-ref are just like the arguments to `git diff`
 ```
-`--open` tries to open the diff in a browser.  With no arguments you get HTML on stdout, or you can use `-o`. 
+- `old-ref` and `new-ref` are just like the arguments to `git diff`
+- `--open` tries to open the diff in a browser.  With no arguments you get HTML on stdout, or you can use `-o`. 
 
 ### From github:
 ```
