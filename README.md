@@ -6,14 +6,18 @@ github pull requests or local git repos. For more information, some examples, an
  (generated from [readme.clj](https://github.com/ladderlife/autochrome/blob/master/src/autochrome/readme.clj)).
 
 ## Usage
+### From local git repo:
+```
+$ lein run --open --git-dir /path/to/repo <old-ref> [<new-ref>]
+# old-ref and new-ref are just like the arguments to `git diff`
+```
+`--open` tries to open the diff in a browser.  With no arguments you get HTML on stdout, or you can use `-o`. 
+
+### From github:
 ```
 $ lein run <owner> <repo> <pr-number> -o diff.html        # write a diff for a GitHub pull request
 $ lein run --token user:123abc <owner> <repo> <pr-number> # use supplied auth token for github api
-$ lein run ... --open                                     # try to open the diff in a browser
-$ lein uberjar                                            # create a standalone jar in target/ directory
-$ java -jar autochrome.jar <old-tree> <new-tree>          # run like git diff from your repo
 ```
-
 ## License
 
 Copyright © 2018 Ladder Financial, Inc.
