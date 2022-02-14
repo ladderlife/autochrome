@@ -2,3 +2,4 @@
 /.idea/*
 .nrepl-port
 autochrome.iml
+.cpcache
