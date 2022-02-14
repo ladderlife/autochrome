@@ -39,6 +39,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo base-ref $GITHUB_BASE_REF
-          echo head-ref GITHUB_HEAD_REF
+          echo head-ref $GITHUB_HEAD_REF
+          echo this-ref $GITHUB_REF
           # clojure -M -m autochrome.core --git-dir .    $GITHUB_SHA
 
