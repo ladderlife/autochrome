@@ -1,6 +1,6 @@
 name: Continuous Delivery
 
-on: push
+on: push, pull_request
 
 jobs:
   lint-check:
@@ -40,6 +40,6 @@ jobs:
         run: |
           echo base-ref $GITHUB_BASE_REF
           echo head-ref $GITHUB_HEAD_REF
-          echo this-ref $GITHUB_REF
+          echo this-ref $GITHUB_SHA
           # clojure -M -m autochrome.core --git-dir .    $GITHUB_SHA
 
