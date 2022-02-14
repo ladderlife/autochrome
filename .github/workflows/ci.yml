@@ -1,0 +1,44 @@
+name: Continuous Delivery
+
+on: push
+
+jobs:
+  lint-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install java
+        uses: actions/setup-java@v1
+        with:
+          java-version: '11.0.7'
+
+      - name: Install clojure
+        uses: DeLaGuardo/setup-clojure@master
+        with:
+          cli: '1.10.3.943'
+
+      - name: Install babashka
+        run: |
+          curl -sLO https://raw.githubusercontent.com/babashka/babashka/master/install
+          chmod +x install
+          ./install
+
+      - name: maven cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2
+            ~/.gitlibs
+          key: ${{ runner.os }}-maven-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Run autochrome
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo base-ref $GITHUB_BASE_REF
+          echo head-ref GITHUB_HEAD_REF
+          # clojure -M -m autochrome.core --git-dir .    $GITHUB_SHA
+
