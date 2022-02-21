@@ -15,6 +15,18 @@
    [nil "--clojure-only" "only show clojure diffs"]
    [nil "--git-dir PATH" "path to the git repo"]])
 
+(defn local-or-ci-diff
+  [a b]
+  (let [ghrepo (System/getenv "GITHUB_REPOSITORY")
+        ghref (System/getenv "GITHUB_REF")
+        [_match prnum] (some->> ghref (re-find #"refs/pull/(\d+)/merge"))]
+  (if-not (and ghrepo prnum)
+    (page/local-diff a b)
+    (page/diff-page
+     (format "https://github.com/%s/pull/%s/files#diff-" ghrepo prnum)
+     (format "%s #%s" ghrepo prnum)
+     (github/local-diff a b)))))
+
 (defn do-main
   [& args]
   (let [{:keys [options arguments]} (cli/parse-opts args cli-options)
@@ -24,7 +36,7 @@
                            github/*git-dir* (or (:git-dir options) ".")]
                    (cond
                      c (page/pull-request-diff a b (Integer/parseInt c))
-                     b (page/local-diff a b)
+                     b (local-or-ci-diff a b)
                      a (page/local-diff-work-tree a)))
         output-file (if (:output options)
                       (io/file (:output options))
