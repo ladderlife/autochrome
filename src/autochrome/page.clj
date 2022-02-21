@@ -59,9 +59,9 @@
       (go form)
       (persistent! (conj! @acc (.toString sb))))))
 
-(defn md5sum
+(defn sha256sum
   [s]
-  (-> (MessageDigest/getInstance "MD5")
+  (-> (MessageDigest/getInstance "SHA-256")
       (.digest (.getBytes s))
       ;; https://stackoverflow.com/a/25758008
       DatatypeConverter/printHexBinary
@@ -88,8 +88,8 @@
         (fn [[s t ann]]
           (comp/panes
            {}
-           (some->> s list (diff-pane (str linkbase (md5sum (:path old)) "L") ann))
-           (some->> t list (diff-pane (str linkbase (md5sum (:path new)) "R") ann)))))
+           (some->> s list (diff-pane (str linkbase (sha256sum (:path old)) "L") ann))
+           (some->> t list (diff-pane (str linkbase (sha256sum (:path new)) "R") ann)))))
        (interpose (comp/spacer))))
 
 (defn delete-everything
@@ -99,7 +99,7 @@
 ;; don't restrict width to 50% when there is no other file to display
 (defn one-file-diff
   [linkbase path lr root]
-  (comp/root {} (diff-pane (str linkbase (md5sum path) lr) {} (:contents root))))
+  (comp/root {} (diff-pane (str linkbase (sha256sum path) lr) {} (:contents root))))
 
 (defn patch-heading
   [{:keys [old-path new-path]}]
